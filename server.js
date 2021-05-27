@@ -1,10 +1,11 @@
 const express = require('express');
 const path = require('path');
 const { Server } = require('ws');
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 5000;
 
 const server = express()
   .use(express.static(path.join(__dirname, 'build')))
+  .get('/*', (req, res) => res.sendFile(path.join(__dirname, 'build', 'index.html')))
   .listen(PORT, () => console.log(`Server is running in port: ${PORT}`));
 
 class Room {

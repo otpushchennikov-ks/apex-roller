@@ -24,6 +24,7 @@ message.config({ maxCount: 3 });
 
 const { Text } = Typography;
 const inputWidth = 300;
+const wsHost = process.env.NODE_ENV === 'production' ? window.location.origin.replace(/^http/, 'ws') : 'ws://localhost:5000';
 
 const ammoTypeImagesMap: Record<AmmoType, string> = {
   Light: LightAmmoImage,
@@ -68,7 +69,7 @@ function App() {
 
     if (!roomId) return;
 
-    const wsClient = new WebSocket(`ws://localhost:${process.env.PORT || 4000}`);
+    const wsClient = new WebSocket(wsHost);
     wsClient.onopen = () => {
       wsClient.send(JSON.stringify({
         eventType: 'connect',
@@ -195,7 +196,7 @@ function App() {
               setCurrentWeapons(nextWeapons);
               sendSharedState({ challengeIndex: currentChallengeIndex, isUnique: checked, count: weaponsCount, weapons: nextWeapons });
             }}
-            style={{ width: 121, display: 'flex', margin: '0 auto 10px' }}
+            style={{ width: 121, display: 'flex', margin: `0 auto ${isHost ? '10px' : 0}` }}
             disabled={!isHost}
           >
             <Text strong={true}>Is unique</Text>
@@ -236,7 +237,7 @@ function App() {
             {currentWeapons.map(({ name, ammoType }, i) => {
               return (
                 <List.Item
-                  key={name}
+                  key={name + i}
                   style={{ fontSize: 32 }}
                   className={styles.box}
                 >
