@@ -2,7 +2,7 @@ import 'antd/dist/antd.css'
 import { useState, useMemo, useRef, CSSProperties } from 'react';
 import { render } from 'react-dom';
 import challenges from './challenges';
-import { Select, Button, InputNumber, Checkbox, List, Tooltip, Typography, message } from 'antd';
+import { Select, Button, InputNumber, Checkbox, List, Tooltip, Typography, message, Input } from 'antd';
 import { RedoOutlined } from '@ant-design/icons';
 import { v4 as uuid } from 'uuid';
 import { AmmoType } from './weapons';
@@ -48,6 +48,7 @@ export default function App() {
   const [weaponsIsUnique, setWeaponsIsUnique] = useState(true);
   const [weaponsCount, setWeaponsCount] = useState(2);
   const [missClickGuardIsEnabled, setMissClickGuardIsEnabled] = useState(true);
+  const [missClickGuardMsConfig, setMissClickGuardMsConfig] = useState<number>(4000);
   const missClickTimerIdRef = useRef<number | null>(null);
 
   const listJsx = useMemo(() => {
@@ -134,7 +135,7 @@ export default function App() {
             style={{ display: 'block', marginLeft: 'auto', marginRight: 'auto' }}
             onClick={() => {
               if (missClickTimerIdRef.current && missClickGuardIsEnabled) {
-                message.info('No more than once every 4 seconds');
+                message.info('No more than once every 4 seconds', missClickGuardMsConfig);
                 return;
               };
   
@@ -164,13 +165,23 @@ export default function App() {
           <RedoOutlined />
         </Button>
       </Tooltip>
-      <Checkbox
-        checked={missClickGuardIsEnabled}
-        onChange={({ target: { checked }}) => setMissClickGuardIsEnabled(checked)}
-        style={{ position: 'absolute', top: 20, right: 20, ...boxStyles, padding: 10 }}
-      >
-        Missclick guard
-      </Checkbox>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', position: 'absolute', top: 20, right: 20, ...boxStyles, padding: 10 }}>
+        <Checkbox
+          checked={missClickGuardIsEnabled}
+          onChange={({ target: { checked }}) => setMissClickGuardIsEnabled(checked)}
+        >
+          Missclick guard
+        </Checkbox>
+        <InputNumber
+          min={1}
+          max={5}
+          value={missClickGuardMsConfig / 1000}
+          onChange={value => setMissClickGuardMsConfig(value * 1000)}
+          style={{ marginLeft: 2, marginRight: 10 }}
+          disabled={!missClickGuardIsEnabled}
+        />
+        <span>seconds</span>
+      </div>
     </div>
   );
 }
