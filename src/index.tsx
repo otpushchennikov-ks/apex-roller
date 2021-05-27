@@ -1,10 +1,9 @@
 import 'antd/dist/antd.css'
-import { useState, useMemo, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { render } from 'react-dom';
 import challenges from './challenges';
 import { Select, Button, InputNumber, Checkbox, List, Typography, message } from 'antd';
-import { v4 as uuid } from 'uuid';
-import { AmmoType } from './weapons';
+import { AmmoType, Weapon } from './weapons';
 import { generateRandomBackgroundSrc } from './utils';
 import LightAmmoImage from './images/light-ammo.png';
 import HeavyAmmoImage from './images/heavy-ammo.png';
@@ -16,6 +15,9 @@ import RelicAmmoImage from './images/relic-ammo.png';
 import { Helmet } from 'react-helmet';
 import classNames from 'classnames';
 import styles from './style.module.scss';
+import { BrowserRouter as Router, useLocation } from 'react-router-dom';
+import { useEffectOnce } from 'react-use';
+import { getCurrentUserId } from './utils';
 
 
 message.config({ maxCount: 3 });
@@ -33,53 +35,100 @@ const ammoTypeImagesMap: Record<AmmoType, string> = {
   Relic: RelicAmmoImage,
 };
 
-export default function App() {
+type RollerSharedState = {
+  challengeIndex: number
+  isUnique: boolean
+  count: number
+  weapons: Weapon[]
+};
+
+function App() {
+  const [isHost, setIsHost] = useState(true);
   const [isWithBackground, setIsWithBackground] = useState(false);
   const [currentBackgroundSrc, setCurrentBackgroundSrc] = useState<string | null>(null);
-  const [regenerateListId, setRegenerageListId] = useState(uuid());
   const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);
   const [weaponsIsUnique, setWeaponsIsUnique] = useState(true);
   const [weaponsCount, setWeaponsCount] = useState(2);
   const [missClickGuardIsEnabled, setMissClickGuardIsEnabled] = useState(false);
   const [missClickGuardMsConfig, setMissClickGuardMsConfig] = useState<number>(3000);
+  const [currentWeapons, setCurrentWeapons] = useState<Weapon[]>([]);
   const missClickTimerIdRef = useRef<number | null>(null);
+  const wsClientRef = useRef<WebSocket | null>(null);
 
-  const listJsx = useMemo(() => {
-    return (
-      <List key={regenerateListId}>
-        {challenges[currentChallengeIndex].runFn(weaponsCount, weaponsIsUnique).map(({ name, ammoType }, i) => {
-          return (
-            <List.Item
-              key={name}
-              style={{ fontSize: 32 }}
-              className={styles.box}
-            >
-              <Text strong={true} style={{ marginRight: 10 }}>
-                {i + 1}.
-              </Text>
-              <Text strong={true}>{name}</Text>
-              <img
-                style={{ display: 'block', marginLeft: 10, width: 42 }}
-                src={ammoTypeImagesMap[ammoType]}
-                alt=""
-              />
-            </List.Item>
-          );
-        })}
-      </List>
-    );
-  }, [
-    regenerateListId,
-    currentChallengeIndex,
-    weaponsCount,
-    weaponsIsUnique,
-  ]);
+  const { pathname } = useLocation();
+  const roomId = pathname.slice(1);
+
+  const generateWeapons = ({ index, count, isUnique }: { index: number, count: number, isUnique: boolean }) => {
+    return challenges[index].runFn(count, isUnique);
+  };
+
+  useEffectOnce(() => {
+    const nextWeapons = generateWeapons({ index: currentChallengeIndex, count: weaponsCount, isUnique: weaponsIsUnique });
+    setCurrentWeapons(nextWeapons);
+
+    if (!roomId) return;
+
+    const wsClient = new WebSocket(`ws://localhost:${process.env.PORT || 4000}`);
+    wsClient.onopen = () => {
+      wsClient.send(JSON.stringify({
+        eventType: 'connect',
+        roomId,
+        userId: getCurrentUserId(),
+        state: {
+          challengeIndex: currentChallengeIndex,
+          isUnique: weaponsIsUnique,
+          count: weaponsCount,
+          weapons: nextWeapons,
+        },
+      }));
+
+      wsClient.onmessage = message => {
+        const data = JSON.parse(message.data);
+
+        switch (data.eventType) {
+          case 'connected': {
+            wsClientRef.current = wsClient;
+            setIsHost(data.isHost);
+
+            const { state: { challengeIndex, isUnique, count, weapons }} = data;
+
+            setCurrentChallengeIndex(challengeIndex);
+            setWeaponsIsUnique(isUnique);
+            setWeaponsCount(count);
+            setCurrentWeapons(weapons);
+            break;
+          }
+
+          case 'update': {
+            const { state: { challengeIndex, isUnique, count, weapons }} = data;
+
+            setCurrentChallengeIndex(challengeIndex);
+            setWeaponsIsUnique(isUnique);
+            setWeaponsCount(count);
+            setCurrentWeapons(weapons);
+            break;
+          }
+
+          default:
+            break;
+        }
+      };
+    };
+  });
+
+  const sendSharedState = (state: RollerSharedState) => {
+    wsClientRef.current?.send(JSON.stringify({
+      eventType: 'update',
+      roomId,
+      state,
+    }));
+  };
 
   return (
     <div
       className={classNames([styles.root, styles.box])}
       style={{
-        backgroundColor: !currentBackgroundSrc ? '#000' : undefined,
+        backgroundColor: !currentBackgroundSrc ? 'rgb(47, 49, 54)' : undefined,
         backgroundImage: currentBackgroundSrc ? `url(${currentBackgroundSrc})` : undefined,
       }}
     >
@@ -94,9 +143,16 @@ export default function App() {
             </Text>
             <Select
               value={currentChallengeIndex}
-              onChange={value => setCurrentChallengeIndex(value)}
+              onChange={value => {
+                setCurrentChallengeIndex(value);
+
+                const nextWeapons = generateWeapons({ index: value, count: weaponsCount, isUnique: weaponsIsUnique });
+                setCurrentWeapons(nextWeapons);
+                sendSharedState({ challengeIndex: value, isUnique: weaponsIsUnique, count: weaponsCount, weapons: nextWeapons });
+              }}
               style={{ width: inputWidth }}
               size="large"
+              disabled={!isHost}
             >
               {challenges.map(({ name }, i) => {
                 return (
@@ -118,47 +174,85 @@ export default function App() {
               min={1}
               max={5}
               value={weaponsCount}
-              onChange={value => setWeaponsCount(value)}
+              onChange={value => {
+                setWeaponsCount(value);
+                
+                const nextWeapons = generateWeapons({ index: currentChallengeIndex, count: value, isUnique: weaponsIsUnique });
+                setCurrentWeapons(nextWeapons);
+                sendSharedState({ challengeIndex: currentChallengeIndex, isUnique: weaponsIsUnique, count: value, weapons: nextWeapons });
+              }}
               style={{ width: inputWidth }}
               size="large"
+              disabled={!isHost}
             />
           </div>
           <Checkbox
             checked={weaponsIsUnique}
-            onChange={({ target: { checked }}) => setWeaponsIsUnique(checked)}
+            onChange={({ target: { checked }}) => {
+              setWeaponsIsUnique(checked);
+
+              const nextWeapons = generateWeapons({ index: currentChallengeIndex, count: weaponsCount, isUnique: checked });
+              setCurrentWeapons(nextWeapons);
+              sendSharedState({ challengeIndex: currentChallengeIndex, isUnique: checked, count: weaponsCount, weapons: nextWeapons });
+            }}
             style={{ width: 121, display: 'flex', margin: '0 auto 10px' }}
+            disabled={!isHost}
           >
             <Text strong={true}>Is unique</Text>
           </Checkbox>
-          <Button
-            style={{ display: 'block', margin: '0 auto' }}
-            onClick={() => {
-              if (missClickTimerIdRef.current && missClickGuardIsEnabled) {
-                message.info(`No more than once every ${missClickGuardMsConfig / 1000} seconds`, missClickGuardMsConfig / 1000);
-                return;
-              };
-  
-              if (missClickGuardIsEnabled) {
-                missClickTimerIdRef.current = window.setTimeout(() => {
-                  missClickTimerIdRef.current = null;
-                }, missClickGuardMsConfig);
-              }
-              
-              setRegenerageListId(uuid());
+          {isHost &&
+            <Button
+              style={{ display: 'block', margin: '0 auto' }}
+              onClick={() => {
+                if (missClickTimerIdRef.current && missClickGuardIsEnabled) {
+                  message.info(`No more than once every ${missClickGuardMsConfig / 1000} seconds`, missClickGuardMsConfig / 1000);
+                  return;
+                };
+    
+                if (missClickGuardIsEnabled) {
+                  missClickTimerIdRef.current = window.setTimeout(() => {
+                    missClickTimerIdRef.current = null;
+                  }, missClickGuardMsConfig);
+                }
 
-              if (isWithBackground) {
-                setCurrentBackgroundSrc(generateRandomBackgroundSrc(currentBackgroundSrc!));
-              }
-            }}
-          >
-            <Text strong={true}>Use challenge</Text>
-          </Button>
+                const nextWeapons = generateWeapons({ index: currentChallengeIndex, count: weaponsCount, isUnique: weaponsIsUnique });
+                setCurrentWeapons(nextWeapons);
+                sendSharedState({ challengeIndex: currentChallengeIndex, isUnique: weaponsIsUnique, count: weaponsCount, weapons: nextWeapons });
+
+                if (isWithBackground) {
+                  setCurrentBackgroundSrc(generateRandomBackgroundSrc(currentBackgroundSrc!));
+                }
+              }}
+            >
+              <Text strong={true}>Use challenge</Text>
+            </Button>
+          }
         </div>
         <div
           className={styles.boxHighlited}
           style={{ marginTop: 20, padding: 20 }}
         >
-          {listJsx}
+          <List>
+            {currentWeapons.map(({ name, ammoType }, i) => {
+              return (
+                <List.Item
+                  key={name}
+                  style={{ fontSize: 32 }}
+                  className={styles.box}
+                >
+                  <Text strong={true} style={{ marginRight: 10 }}>
+                    {i + 1}.
+                  </Text>
+                  <Text strong={true}>{name}</Text>
+                  <img
+                    style={{ display: 'block', marginLeft: 10, width: 42 }}
+                    src={ammoTypeImagesMap[ammoType]}
+                    alt=""
+                  />
+                </List.Item>
+              );
+            })}
+          </List>
         </div>
       </div>
       <div 
@@ -180,28 +274,38 @@ export default function App() {
           with background
         </Checkbox>
       </div>
-      <div
-        className={classNames([styles.box, styles.boxHighlited])}
-        style={{ position: 'absolute', top: 20, right: 20 }}
-      >
-        <Checkbox
-          checked={missClickGuardIsEnabled}
-          onChange={({ target: { checked }}) => setMissClickGuardIsEnabled(checked)}
+      {isHost &&
+        <div
+          className={classNames([styles.box, styles.boxHighlited])}
+          style={{ position: 'absolute', top: 20, right: 20 }}
         >
-          Missclick guard
-        </Checkbox>
-        <InputNumber
-          min={1}
-          max={5}
-          value={missClickGuardMsConfig / 1000}
-          onChange={value => setMissClickGuardMsConfig(value * 1000)}
-          style={{ margin: '0 10px 0 2px' }}
-          disabled={!missClickGuardIsEnabled}
-        />
-        <span>seconds</span>
-      </div>
+          <Checkbox
+            checked={missClickGuardIsEnabled}
+            onChange={({ target: { checked }}) => setMissClickGuardIsEnabled(checked)}
+          >
+            Missclick guard
+          </Checkbox>
+          <InputNumber
+            min={1}
+            max={5}
+            value={missClickGuardMsConfig / 1000}
+            onChange={value => setMissClickGuardMsConfig(value * 1000)}
+            style={{ margin: '0 10px 0 2px' }}
+            disabled={!missClickGuardIsEnabled}
+          />
+          <span>seconds</span>
+        </div>
+      }
     </div>
   );
 }
 
-render(<App />, document.getElementById('root'));
+function Root() {
+  return (
+    <Router>
+      <App />
+    </Router>
+  );
+}
+
+render(<Root />, document.getElementById('root'));

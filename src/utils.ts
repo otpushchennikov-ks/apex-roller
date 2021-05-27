@@ -1,3 +1,6 @@
+import { v4 as uuid } from 'uuid';
+
+
 const backgrounds = [
   'https://images6.alphacoders.com/992/thumb-1920-992280.jpg',
   'https://images2.alphacoders.com/992/thumb-1920-992034.jpg',
@@ -21,4 +24,12 @@ export const generateRandomBackgroundSrc = (current?: string) => {
   }
 
   return nextBackground;
+};
+
+export const getCurrentUserId = () => {
+  if (!localStorage.getItem('userId')) {
+    localStorage.setItem('userId', uuid());
+  }
+
+  return localStorage.getItem('userId');
 };
