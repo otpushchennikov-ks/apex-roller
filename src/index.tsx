@@ -47,6 +47,7 @@ export default function App() {
   const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);
   const [weaponsIsUnique, setWeaponsIsUnique] = useState(true);
   const [weaponsCount, setWeaponsCount] = useState(2);
+  const [missClickGuardIsEnabled, setMissClickGuardIsEnabled] = useState(true);
   const missClickTimerIdRef = useRef<number | null>(null);
 
   const listJsx = useMemo(() => {
@@ -132,14 +133,16 @@ export default function App() {
           <Button
             style={{ display: 'block', marginLeft: 'auto', marginRight: 'auto' }}
             onClick={() => {
-              if (missClickTimerIdRef.current) {
+              if (missClickTimerIdRef.current && missClickGuardIsEnabled) {
                 message.info('No more than once every 4 seconds');
                 return;
               };
   
-              missClickTimerIdRef.current = window.setTimeout(() => {
-                missClickTimerIdRef.current = null;
-              }, 4000);
+              if (missClickGuardIsEnabled) {
+                missClickTimerIdRef.current = window.setTimeout(() => {
+                  missClickTimerIdRef.current = null;
+                }, 4000);
+              }
               
               setRegenerageListId(uuid());
               setCurrentBackgroundSrc(generateRandomBackgroundSrc(currentBackgroundSrc));
@@ -161,6 +164,13 @@ export default function App() {
           <RedoOutlined />
         </Button>
       </Tooltip>
+      <Checkbox
+        checked={missClickGuardIsEnabled}
+        onChange={({ target: { checked }}) => setMissClickGuardIsEnabled(checked)}
+        style={{ position: 'absolute', top: 20, right: 20, ...boxStyles, padding: 10 }}
+      >
+        Missclick guard
+      </Checkbox>
     </div>
   );
 }
