@@ -1,4 +1,5 @@
 import weapons, { Weapon } from './weapons';
+import { generateRandomIndex } from './utils';
 
 
 type Challenge = {
@@ -13,7 +14,6 @@ const makeChallenge: ChallengeFactory = (name, poolFactory) => {
     name,
     runFn: (weaponsCount, isUnique = true) => {
       let pool = poolFactory();
-      const generateIndex = () => Math.floor(Math.random() * pool.length);
   
       if (weaponsCount >= pool.length) {
         return pool;
@@ -21,7 +21,7 @@ const makeChallenge: ChallengeFactory = (name, poolFactory) => {
       
       let result: Weapon[] = [];
       for (let i = 0; i < weaponsCount; i++) {
-        const nextIndex = generateIndex();
+        const nextIndex = generateRandomIndex(pool.length);
   
         result.push(pool[nextIndex]);
   
