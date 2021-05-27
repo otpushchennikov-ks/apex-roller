@@ -37,7 +37,7 @@ const makeChallenge: ChallengeFactory = (name, poolFactory) => {
 
 const brChallenges: Challenge[] = [
   makeChallenge('BR: all weapons', () => weapons.slice()),
-  makeChallenge('BR: all weapons without airdrops', () => weapons.filter(({ isAirdrop }) => !isAirdrop)),
+  makeChallenge('BR: all weapons without airdrop', () => weapons.filter(({ isAirdrop }) => !isAirdrop)),
 ];
 
 const arenaChallenges: Challenge[] = [
