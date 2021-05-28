@@ -32,6 +32,9 @@ const makeChallenge: ChallengeFactory = (name, poolFactory) => {
 const brChallenges: Challenge[] = [
   makeChallenge('BR: all weapons', () => weapons.slice()),
   makeChallenge('BR: all weapons without airdrop', () => weapons.filter(({ isAirdrop }) => !isAirdrop)),
+  makeChallenge('BR: all pistols', () => weapons.filter(({ type }) => type === 'Pistol')),
+  makeChallenge('BR: all smg\'s', () => weapons.filter(({ type }) => type === 'SMG')),
+  makeChallenge('BR: snipers and pistols', () => weapons.filter(({ type }) => type === 'Sniper' || type === 'Pistol')),
 ];
 
 const arenaChallenges: Challenge[] = [
