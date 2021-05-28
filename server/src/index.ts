@@ -6,10 +6,12 @@ import { Server as WSS } from 'ws';
 import { UserShareableState } from 'roller-types';
 
 
+const clientBuildPath = path.join(__dirname, '..', '..', 'client', 'build');
+
 const PORT = process.env.PORT || 5000;
 const httpServer = express()
-  .use(express.static(path.join(__dirname, 'build')))
-  .get('/*', (_, res) => res.sendFile(path.join(__dirname, 'build', 'index.html')))
+  .use(express.static(clientBuildPath))
+  .get('/*', (_, res) => res.sendFile(path.join(clientBuildPath, 'index.html')))
   .listen(PORT, () => console.log(`Server is running in port: ${PORT}`));
 
 class Room {

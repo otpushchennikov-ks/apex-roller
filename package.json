@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "name": "apex-roller-root",
+  "version": "0.1.0",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "i": "npm install",
+    "install": "npm install client && npm install server",
+    "build": "cd client && npm run build && cd ../server && npm run build && cd ../",
+    "start": "cd server && npm start"
+  },
+  "dependencies": {
+    "apex-roller-client": "file:client",
+    "apex-roller-server": "file:server"
+  }
+}
