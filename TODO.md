@@ -14,3 +14,5 @@ Persist настроек на любом клиенте
 !Global:
 Добавить челленджей
 Дебаг гонки (быстрые изменения состояния без задержок)
+private entities in modules
+!! FIX IMPORTS FROM SHARED LIBRARY !!

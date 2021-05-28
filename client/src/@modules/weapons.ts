@@ -1,4 +1,4 @@
-import { Weapon } from 'roller-types';
+import { Weapon } from '../../../shared/types';
 
 
 const weapons: readonly Weapon[] = [

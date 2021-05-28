@@ -1,5 +1,3 @@
-/// <reference path="../../shared/types.d.ts" />
-
 import 'antd/dist/antd.css'
 import { useState, useRef } from 'react';
 import { render } from 'react-dom';
@@ -18,7 +16,7 @@ import classNames from 'classnames';
 import styles from '@styles/style.module.scss';
 import { BrowserRouter as Router, useLocation } from 'react-router-dom';
 import { useEffectOnce } from 'react-use';
-import { AmmoType, UserShareableState, Weapon } from 'roller-types';
+import { AmmoType, UserShareableState, Weapon } from '../../shared/types';
 
 
 message.config({ maxCount: 3 });

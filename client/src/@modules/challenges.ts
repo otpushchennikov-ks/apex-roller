@@ -1,7 +1,7 @@
-import { Weapon, ChallengeFactory, Challenge } from 'roller-types';
+import { Weapon } from '../../../shared/types';
+import { ChallengeFactory, Challenge } from '../../../shared/types';
 import weapons from '@modules/weapons';
 import generateRandomIndex from '@utils/generateRandomIndex';
-
 
 const makeChallenge: ChallengeFactory = (name, poolFactory) => {
   return {
