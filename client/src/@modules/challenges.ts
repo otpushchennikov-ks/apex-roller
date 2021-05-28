@@ -1,13 +1,7 @@
-import weapons, { Weapon } from './weapons';
-import { generateRandomIndex } from './utils';
+import { Weapon, ChallengeFactory, Challenge } from 'roller-types';
+import weapons from '@modules/weapons';
+import generateRandomIndex from '@utils/generateRandomIndex';
 
-
-type Challenge = {
-  name: string
-  runFn: (weaponsCount: number, isUnique?: boolean) => Weapon[]
-}
-
-type ChallengeFactory = (name: string, poolFactory: () => Weapon[]) => Challenge
 
 const makeChallenge: ChallengeFactory = (name, poolFactory) => {
   return {

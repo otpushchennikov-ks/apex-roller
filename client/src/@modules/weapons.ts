@@ -1,13 +1,5 @@
-export type AmmoType = 'Light' | 'Heavy' | 'Energy' | 'Shotgun' | 'Sniper' | 'Arrows' | 'Relic'
-export type WeaponType = 'AR' | 'SMG' | 'LMG' | 'Marksman' | 'Shotgun' | 'Pistol' | 'Sniper'
+import { Weapon } from 'roller-types';
 
-export type Weapon = {
-  type: WeaponType
-  ammoType: AmmoType
-  name: string
-  isAirdrop: boolean
-  isArenaStart: boolean
-}
 
 const weapons: readonly Weapon[] = [
   { type: 'AR', ammoType: 'Energy',  name: 'HAVOC Rifle', isAirdrop: false, isArenaStart: false },
