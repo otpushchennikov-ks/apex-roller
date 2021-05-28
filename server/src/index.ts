@@ -73,6 +73,9 @@ wss.on('connection', connection => {
     }
   });
 
+  setInterval(() => connection.ping(), 20000);
+
+  connection.on('pong', () => console.log(`server: ${currentUserId} - alive`));
 
   connection.on('close', () => console.log('server: user disconnected'));
 });
