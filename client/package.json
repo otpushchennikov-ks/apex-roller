@@ -1,5 +1,5 @@
 {
-  "name": "challenges",
+  "name": "apex-roller-client",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -16,8 +16,6 @@
     "@types/uuid": "^8.3.0",
     "antd": "^4.16.0",
     "classnames": "^2.3.1",
-    "express": "^4.17.1",
-    "nodemon": "^2.0.7",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-helmet": "^6.1.0",
@@ -25,16 +23,11 @@
     "react-scripts": "4.0.3",
     "react-use": "^17.2.4",
     "sass": "^1.34.0",
-    "serve": "^11.3.2",
     "typescript": "^4.3.2",
-    "uuid": "^8.3.2",
-    "web-vitals": "^1.1.2",
-    "ws": "^7.4.6"
+    "uuid": "^8.3.2"
   },
   "scripts": {
-    "start": "node server",
-    "dev-back": "nodemon server",
-    "dev-ui": "react-scripts start",
+    "dev": "react-scripts start",
     "build": "react-scripts build"
   },
   "eslintConfig": {

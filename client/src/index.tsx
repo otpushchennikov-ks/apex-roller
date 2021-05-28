@@ -1,23 +1,25 @@
+/// <reference path="../../shared/types.d.ts" />
+
 import 'antd/dist/antd.css'
 import { useState, useRef } from 'react';
 import { render } from 'react-dom';
-import challenges from './challenges';
+import challenges from './@modules/challenges';
 import { Select, Button, InputNumber, Checkbox, List, Typography, message } from 'antd';
-import { AmmoType, Weapon } from './weapons';
-import { generateRandomBackgroundSrc } from './utils';
-import LightAmmoImage from './images/light-ammo.png';
-import HeavyAmmoImage from './images/heavy-ammo.png';
-import EnergyAmmoImage from './images/energy-ammo.png';
-import ShotgunAmmoImage from './images/shotgun-ammo.png';
-import SniperAmmoImage from './images/sniper-ammo.png';
-import ArrowsAmmoImage from './images/arrows-ammo.png';
-import RelicAmmoImage from './images/relic-ammo.png';
+import generateRandomBackgroundSrc from '@utils/generateRandomBackgroundSrc';
+import getUserId from '@utils/getUserId';
+import LightAmmoImage from '@images/light-ammo.png';
+import HeavyAmmoImage from '@images/heavy-ammo.png';
+import EnergyAmmoImage from '@images/energy-ammo.png';
+import ShotgunAmmoImage from '@images/shotgun-ammo.png';
+import SniperAmmoImage from '@images/sniper-ammo.png';
+import ArrowsAmmoImage from '@images/arrows-ammo.png';
+import RelicAmmoImage from '@images/relic-ammo.png';
 import { Helmet } from 'react-helmet';
 import classNames from 'classnames';
-import styles from './style.module.scss';
+import styles from '@styles/style.module.scss';
 import { BrowserRouter as Router, useLocation } from 'react-router-dom';
 import { useEffectOnce } from 'react-use';
-import { getCurrentUserId } from './utils';
+import { AmmoType, UserShareableState, Weapon } from 'roller-types';
 
 
 message.config({ maxCount: 3 });
@@ -34,13 +36,6 @@ const ammoTypeImagesMap: Record<AmmoType, string> = {
   Sniper: SniperAmmoImage,
   Arrows: ArrowsAmmoImage,
   Relic: RelicAmmoImage,
-};
-
-type RollerSharedState = {
-  challengeIndex: number
-  isUnique: boolean
-  count: number
-  weapons: Weapon[]
 };
 
 function App() {
@@ -74,7 +69,7 @@ function App() {
       wsClient.send(JSON.stringify({
         eventType: 'connect',
         roomId,
-        userId: getCurrentUserId(),
+        userId: getUserId(),
         state: {
           challengeIndex: currentChallengeIndex,
           isUnique: weaponsIsUnique,
@@ -117,7 +112,7 @@ function App() {
     };
   });
 
-  const sendSharedState = (state: RollerSharedState) => {
+  const sendSharedState = (state: UserShareableState) => {
     wsClientRef.current?.send(JSON.stringify({
       eventType: 'update',
       roomId,

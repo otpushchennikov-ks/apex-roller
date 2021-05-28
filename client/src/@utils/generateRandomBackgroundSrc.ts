@@ -1,4 +1,4 @@
-import { v4 as uuid } from 'uuid';
+import generateRandomIndex from '@utils/generateRandomIndex';
 
 
 const backgrounds = [
@@ -13,9 +13,7 @@ const backgrounds = [
   'https://wallpapercave.com/wp/wp3969391.jpg',
 ];
 
-export const generateRandomIndex = (length: number) => Math.floor(Math.random() * length);
-
-export const generateRandomBackgroundSrc = (current?: string) => {
+const generateRandomBackgroundSrc = (current?: string) => {
   const generate = () => backgrounds[generateRandomIndex(backgrounds.length)];
   let nextBackground = generate();
 
@@ -26,10 +24,4 @@ export const generateRandomBackgroundSrc = (current?: string) => {
   return nextBackground;
 };
 
-export const getCurrentUserId = () => {
-  if (!localStorage.getItem('userId')) {
-    localStorage.setItem('userId', uuid());
-  }
-
-  return localStorage.getItem('userId');
-};
+export default generateRandomBackgroundSrc;
