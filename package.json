@@ -14,6 +14,8 @@
   },
   "dependencies": {
     "apex-roller-client": "file:client",
-    "apex-roller-server": "file:server"
+    "apex-roller-server": "file:server",
+    "fp-ts": "^2.10.5",
+    "io-ts": "^2.2.16"
   }
 }

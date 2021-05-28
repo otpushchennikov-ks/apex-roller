@@ -1,10 +1,12 @@
-/// <reference path="../../shared/types.d.ts" />
-
 import path from 'path';
 import express from 'express';
 import { Server as WSS } from 'ws';
-import { UserShareableState } from 'roller-types';
+import { MessageCodec, UserId } from '../../shared/types';
+import { Room } from './@modules/room'
+import { User } from './@modules/user'
 
+import { PathReporter } from 'io-ts/PathReporter'
+import { isLeft } from 'fp-ts/Either';
 
 const clientBuildPath = path.join(__dirname, '..', '..', 'client', 'build');
 
@@ -14,59 +16,21 @@ const httpServer = express()
   .get('/*', (_, res) => res.sendFile(path.join(clientBuildPath, 'index.html')))
   .listen(PORT, () => console.log(`Server is running in port: ${PORT}`));
 
-class Room {
-  host: User
-  state: UserShareableState
-  users: Map<string, User>
-
-  constructor(host: User, state: UserShareableState) {
-    this.host = host;
-    this.state = state;
-    this.users = new Map([
-      [host.id, host],
-    ]);
-  }
-
-  addUser(user: User) {
-    this.users.set(user.id, user);
-  }
-
-  broadcast(message: any) {
-    const serializedMessage = JSON.stringify(message);
-    
-    this.users.forEach((user, userId) => {
-      if (userId === this.host.id) return;
-
-      if (user.connection.isAlive) {
-        user.connection.send(serializedMessage);
-      } else {
-        // TODO: словить батхерд из-за актулизации хэш-мапы по делиту в цикле
-        this.users.delete(userId);
-      }
-    });
-  }
-}
-
-class User {
-  id: string
-  connection: any
-
-  constructor(id: string, connection: any) {
-    this.id = id;
-    this.connection = connection;
-  }
-}
-
 const rooms = new Map<string, Room>();
 
 const wss = new WSS({ server: httpServer });
 
-wss.on('connection', (connection: any) => {
-  connection.isAlive = true;
+wss.on('connection', connection => {
+  let currentUserId: UserId | null = null;
 
-  connection.on('message', (data: any) => {
-    const message = JSON.parse(data.toString());
-    
+  connection.on('message', data => {
+    const maybeMessage = MessageCodec.decode(JSON.parse(data.toString()))
+    if (isLeft(maybeMessage)) {
+      console.log(PathReporter.report(maybeMessage))
+      return;
+    }
+
+    const message = maybeMessage.right
     switch (message.eventType) {
       case 'connect': {
         const { roomId, userId, state } = message;
@@ -76,7 +40,7 @@ wss.on('connection', (connection: any) => {
 
         const isHost = !room || room.host.id === userId;
         if (!room) {
-          connection.userId = userId;
+          currentUserId = userId;
           room = new Room(user, state);
           rooms.set(roomId, room);
         } else {
@@ -90,16 +54,16 @@ wss.on('connection', (connection: any) => {
       }
 
       case 'update': {
-        if (!connection.userId) return;
+        if (!currentUserId) return;
 
         const { roomId, state } = message;
 
         const room = rooms.get(roomId);
 
-        if (!room || room.host.id !== connection.userId) return;
+        if (!room || room.host.id !== currentUserId) return;
 
         room.state = state;
-        room.broadcast({ eventType: 'update', state: room.state });
+        room.broadcast(message);
         console.log(`update: ${roomId} <- ${JSON.stringify(room.state)}`);
         break;
       }
@@ -109,8 +73,6 @@ wss.on('connection', (connection: any) => {
     }
   });
 
-  // TODO: add hearthbeat
-  connection.on('pong', (connection: any) => connection.isAlive = true);
 
   connection.on('close', () => console.log('server: user disconnected'));
 });
