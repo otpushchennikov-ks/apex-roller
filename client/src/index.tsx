@@ -14,7 +14,6 @@ import ShotgunAmmoImage from '@images/shotgun-ammo.png';
 import SniperAmmoImage from '@images/sniper-ammo.png';
 import ArrowsAmmoImage from '@images/arrows-ammo.png';
 import RelicAmmoImage from '@images/relic-ammo.png';
-import { Helmet } from 'react-helmet';
 import classNames from 'classnames';
 import styles from '@styles/style.module.scss';
 import { BrowserRouter as Router, useLocation } from 'react-router-dom';
@@ -128,9 +127,6 @@ function App() {
         backgroundImage: currentBackgroundSrc ? `url(${currentBackgroundSrc})` : undefined,
       }}
     >
-      <Helmet>
-        <title>Apex roller</title>
-      </Helmet>
       <div style={{ margin: 'auto' }}>
         <div className={styles.boxHighlited} style={{ padding: 20 }}>
           <div className={styles.box} style={{ margin: '0 auto 10px' }}>
