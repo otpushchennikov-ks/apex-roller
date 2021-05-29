@@ -1,21 +1,8 @@
 {
   "private": true,
-  "name": "apex-roller-root",
-  "version": "0.1.0",
+  "name": "@apex-roller/root",
+  "version": "0.0.0",
   "workspaces": [
-    "client",
-    "server"
-  ],
-  "scripts": {
-    "i": "npm install",
-    "install": "npm install client && npm install server",
-    "build": "cd client && npm run build && cd ../server && npm run build && cd ../",
-    "start": "cd server && npm start"
-  },
-  "dependencies": {
-    "apex-roller-client": "file:client",
-    "apex-roller-server": "file:server",
-    "fp-ts": "^2.10.5",
-    "io-ts": "^2.2.16"
-  }
+    "./@shared"
+  ]
 }

@@ -54,10 +54,15 @@ const UserIdCodec = T.brand(
 export type UserId = T.TypeOf<typeof UserIdCodec>
 
 const ConnectEventTypeCodec = T.literal('connect')
+const ConnectedEventTypeCodec = T.literal('connected')
 const UpdateEventTypeCodec  = T.literal('update')
+const ErrorEventTypeCodec  = T.literal('error')
+
 const EventTypeCodec = T.union([
   ConnectEventTypeCodec,
-  UpdateEventTypeCodec
+  ConnectedEventTypeCodec,
+  UpdateEventTypeCodec,
+  ErrorEventTypeCodec
 ])
 export type EventType = T.TypeOf<typeof EventTypeCodec>
 
@@ -69,6 +74,14 @@ export const ConnectMessageCodec = T.type({
 })
 export type ConnectMessage = T.TypeOf<typeof ConnectMessageCodec>
 
+export const ConnectedMessageCodec = T.type({
+  eventType: ConnectedEventTypeCodec,
+  roomId: RoomIdCodec,
+  isHost: T.boolean,
+  state: UserShareableStateCodec,
+})
+export type ConnectedMessage = T.TypeOf<typeof ConnectedMessageCodec>
+
 export const UpdateMessageCodec = T.type({
   eventType: UpdateEventTypeCodec,
   roomId: RoomIdCodec,
@@ -76,7 +89,32 @@ export const UpdateMessageCodec = T.type({
 })
 export type UpdateMessage = T.TypeOf<typeof UpdateMessageCodec>
 
-export const MessageCodec = T.union([ConnectMessageCodec, UpdateMessageCodec])
+export const ErrorMessageCodec = T.type({
+  eventType: ErrorEventTypeCodec,
+  message: T.string
+})
+export type ErrorMessage = T.TypeOf<typeof ErrorMessageCodec>
+
+export const JSONCodec = new T.Type<any, string, string>(
+  'JSONCodec',
+  (input): input is string => typeof input === 'string',
+  (input, context) => {
+    try {
+      return T.success(JSON.parse(input));
+    } catch {
+      return T.failure(input, context);
+    }
+  },
+  input => JSON.stringify(input),
+)
+
+export const MessageCodec = JSONCodec.pipe(T.union([
+  ConnectMessageCodec,
+  ConnectedMessageCodec,
+  UpdateMessageCodec,
+  ErrorMessageCodec
+]))
+
 export type Message = T.TypeOf<typeof MessageCodec>
 
 export type Challenge = {

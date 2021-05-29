@@ -1,14 +1,14 @@
 import path from 'path';
 import express from 'express';
 import { Server as WSS } from 'ws';
-import { MessageCodec, UserId } from '../../shared/types';
+import { MessageCodec, UserId } from '@apex-roller/shared';
 import { Room } from './@modules/room'
 import { User } from './@modules/user'
 
 import { PathReporter } from 'io-ts/PathReporter'
 import { isLeft } from 'fp-ts/Either';
 
-const clientBuildPath = path.join(__dirname, '..', '..', 'client', 'build');
+const clientBuildPath = path.join(__dirname, '..', '..', '@client', 'build');
 
 const PORT = process.env.PORT || 5000;
 const httpServer = express()
@@ -18,15 +18,15 @@ const httpServer = express()
 
 const rooms = new Map<string, Room>();
 
-const wss = new WSS({ server: httpServer });
+const wss = new WSS({ server: httpServer }); 
 
 wss.on('connection', connection => {
   let currentUserId: UserId | null = null;
 
   connection.on('message', data => {
-    const maybeMessage = MessageCodec.decode(JSON.parse(data.toString()))
+    const maybeMessage = MessageCodec.decode(JSON.parse(data.toString()));
     if (isLeft(maybeMessage)) {
-      console.log(PathReporter.report(maybeMessage))
+      console.log(PathReporter.report(maybeMessage));
       return;
     }
 

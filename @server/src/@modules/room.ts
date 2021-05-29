@@ -1,4 +1,4 @@
-import { UserShareableState, UpdateMessage, UpdateMessageCodec } from '../../../shared/types';
+import { UserShareableState, UpdateMessage, UpdateMessageCodec } from '@apex-roller/shared';
 import { User } from './user';
 
 export class Room {

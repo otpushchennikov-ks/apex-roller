@@ -6,7 +6,7 @@ const getUserId = () => {
     localStorage.setItem('userId', uuid());
   }
 
-  return localStorage.getItem('userId');
+  return localStorage.getItem('userId')!;
 };
 
 export default getUserId;

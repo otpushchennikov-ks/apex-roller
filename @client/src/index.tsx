@@ -1,10 +1,10 @@
 import 'antd/dist/antd.css'
+import { AmmoType } from '@apex-roller/shared';
 import { useState, useRef } from 'react';
 import { render } from 'react-dom';
-import challenges from './@modules/challenges';
+import challenges from '@modules/challenges';
 import { Select, Button, InputNumber, Checkbox, List, Typography, message } from 'antd';
 import generateRandomBackgroundSrc from '@utils/generateRandomBackgroundSrc';
-import getUserId from '@utils/getUserId';
 import LightAmmoImage from '@images/light-ammo.png';
 import HeavyAmmoImage from '@images/heavy-ammo.png';
 import EnergyAmmoImage from '@images/energy-ammo.png';
@@ -14,16 +14,14 @@ import ArrowsAmmoImage from '@images/arrows-ammo.png';
 import RelicAmmoImage from '@images/relic-ammo.png';
 import classNames from 'classnames';
 import styles from '@styles/style.module.scss';
-import { BrowserRouter as Router, useLocation } from 'react-router-dom';
-import { useEffectOnce } from 'react-use';
-import { AmmoType, UserShareableState, Weapon } from '../../shared/types';
+import useUserShareableStateReducer from '@hooks/useUserShareableStateReducer';
+import useWebsocket from '@hooks/useWebsocket';
 
 
 message.config({ maxCount: 3 });
 
 const { Text } = Typography;
 const inputWidth = 300;
-const wsHost = process.env.NODE_ENV === 'production' ? window.location.origin.replace(/^http/, 'ws') : 'ws://localhost:5000';
 
 const ammoTypeImagesMap: Record<AmmoType, string> = {
   Light: LightAmmoImage,
@@ -35,87 +33,83 @@ const ammoTypeImagesMap: Record<AmmoType, string> = {
   Relic: RelicAmmoImage,
 };
 
-function App() {
+export default function App() {
   const [isHost, setIsHost] = useState(true);
   const [isWithBackground, setIsWithBackground] = useState(false);
   const [currentBackgroundSrc, setCurrentBackgroundSrc] = useState<string | null>(null);
-  const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);
-  const [weaponsIsUnique, setWeaponsIsUnique] = useState(true);
-  const [weaponsCount, setWeaponsCount] = useState(2);
   const [missClickGuardIsEnabled, setMissClickGuardIsEnabled] = useState(false);
-  const [missClickGuardMsConfig, setMissClickGuardMsConfig] = useState<number>(3000);
-  const [currentWeapons, setCurrentWeapons] = useState<Weapon[]>([]);
+  const [missClickGuardMsConfig, setMissClickGuardMsConfig] = useState(3000);
+
   const missClickTimerIdRef = useRef<number | null>(null);
   const wsClientRef = useRef<WebSocket | null>(null);
 
-  const { pathname } = useLocation();
-  const roomId = pathname.slice(1);
+  const { userShareableState, dispatchUserShareableState } = useUserShareableStateReducer();
 
-  const generateWeapons = ({ index, count, isUnique }: { index: number, count: number, isUnique: boolean }) => {
-    return challenges[index].runFn(count, isUnique);
-  };
+  useWebsocket(userShareableState);
 
-  useEffectOnce(() => {
-    const nextWeapons = generateWeapons({ index: currentChallengeIndex, count: weaponsCount, isUnique: weaponsIsUnique });
-    setCurrentWeapons(nextWeapons);
+  // useEffectOnce(() => {
+  //   dispatchUserShareableState({ type: 'changeWeapons', currentIndex: userShareableState.challengeIndex });
 
-    if (!roomId) return;
+  //   const nextWeapons = generateWeapons({ index: currentChallengeIndex, count: weaponsCount, isUnique: weaponsIsUnique });
+  //   setCurrentWeapons(nextWeapons);
 
-    const wsClient = new WebSocket(wsHost);
-    wsClient.onopen = () => {
-      wsClient.send(JSON.stringify({
-        eventType: 'connect',
-        roomId,
-        userId: getUserId(),
-        state: {
-          challengeIndex: currentChallengeIndex,
-          isUnique: weaponsIsUnique,
-          count: weaponsCount,
-          weapons: nextWeapons,
-        },
-      }));
+  //   if (!roomId) return;
 
-      wsClient.onmessage = message => {
-        const data = JSON.parse(message.data);
+  //   const wsClient = new WebSocket(wsHost);
+  //   wsClient.onopen = () => {
+  //     wsClient.send(JSON.stringify({
+  //       eventType: 'connect',
+  //       roomId,
+  //       userId: getUserId(),
+  //       state: {
+  //         challengeIndex: currentChallengeIndex,
+  //         isUnique: weaponsIsUnique,
+  //         count: weaponsCount,
+  //         weapons: nextWeapons,
+  //       },
+  //     }));
 
-        switch (data.eventType) {
-          case 'connected': {
-            wsClientRef.current = wsClient;
-            setIsHost(data.isHost);
+  //     wsClient.onmessage = message => {
+  //       const data = JSON.parse(message.data);
 
-            const { state: { challengeIndex, isUnique, count, weapons }} = data;
+  //       switch (data.eventType) {
+  //         case 'connected': {
+  //           wsClientRef.current = wsClient;
+  //           setIsHost(data.isHost);
 
-            setCurrentChallengeIndex(challengeIndex);
-            setWeaponsIsUnique(isUnique);
-            setWeaponsCount(count);
-            setCurrentWeapons(weapons);
-            break;
-          }
+  //           const { state: { challengeIndex, isUnique, count, weapons }} = data;
 
-          case 'update': {
-            const { state: { challengeIndex, isUnique, count, weapons }} = data;
+  //           setCurrentChallengeIndex(challengeIndex);
+  //           setWeaponsIsUnique(isUnique);
+  //           setWeaponsCount(count);
+  //           setCurrentWeapons(weapons);
+  //           break;
+  //         }
 
-            setCurrentChallengeIndex(challengeIndex);
-            setWeaponsIsUnique(isUnique);
-            setWeaponsCount(count);
-            setCurrentWeapons(weapons);
-            break;
-          }
+  //         case 'update': {
+  //           const { state: { challengeIndex, isUnique, count, weapons }} = data;
 
-          default:
-            break;
-        }
-      };
-    };
-  });
+  //           setCurrentChallengeIndex(challengeIndex);
+  //           setWeaponsIsUnique(isUnique);
+  //           setWeaponsCount(count);
+  //           setCurrentWeapons(weapons);
+  //           break;
+  //         }
 
-  const sendSharedState = (state: UserShareableState) => {
-    wsClientRef.current?.send(JSON.stringify({
-      eventType: 'update',
-      roomId,
-      state,
-    }));
-  };
+  //         default:
+  //           break;
+  //       }
+  //     };
+  //   };
+  // });
+
+  // const sendSharedState = (state: UserShareableState) => {
+  //   wsClientRef.current?.send(JSON.stringify({
+  //     eventType: 'update',
+  //     roomId,
+  //     state,
+  //   }));
+  // };
 
   return (
     <div
@@ -132,14 +126,8 @@ function App() {
               Challenge
             </Text>
             <Select
-              value={currentChallengeIndex}
-              onChange={value => {
-                setCurrentChallengeIndex(value);
-
-                const nextWeapons = generateWeapons({ index: value, count: weaponsCount, isUnique: weaponsIsUnique });
-                setCurrentWeapons(nextWeapons);
-                sendSharedState({ challengeIndex: value, isUnique: weaponsIsUnique, count: weaponsCount, weapons: nextWeapons });
-              }}
+              value={userShareableState.challengeIndex}
+              onChange={value => dispatchUserShareableState({ type: 'changeIndex', nextIndex: value })}
               style={{ width: inputWidth }}
               size="large"
               disabled={!isHost}
@@ -163,28 +151,16 @@ function App() {
             <InputNumber
               min={1}
               max={5}
-              value={weaponsCount}
-              onChange={value => {
-                setWeaponsCount(value);
-                
-                const nextWeapons = generateWeapons({ index: currentChallengeIndex, count: value, isUnique: weaponsIsUnique });
-                setCurrentWeapons(nextWeapons);
-                sendSharedState({ challengeIndex: currentChallengeIndex, isUnique: weaponsIsUnique, count: value, weapons: nextWeapons });
-              }}
+              value={userShareableState.count}
+              onChange={value => dispatchUserShareableState({ type: 'changeCount', nextCount: value })}
               style={{ width: inputWidth }}
               size="large"
               disabled={!isHost}
             />
           </div>
           <Checkbox
-            checked={weaponsIsUnique}
-            onChange={({ target: { checked }}) => {
-              setWeaponsIsUnique(checked);
-
-              const nextWeapons = generateWeapons({ index: currentChallengeIndex, count: weaponsCount, isUnique: checked });
-              setCurrentWeapons(nextWeapons);
-              sendSharedState({ challengeIndex: currentChallengeIndex, isUnique: checked, count: weaponsCount, weapons: nextWeapons });
-            }}
+            checked={userShareableState.isUnique}
+            onChange={({ target: { checked }}) => dispatchUserShareableState({ type: 'changeIsUnique', nextIsUnique: checked })}
             style={{ width: 121, display: 'flex', margin: `0 auto ${isHost ? '10px' : 0}` }}
             disabled={!isHost}
           >
@@ -194,6 +170,7 @@ function App() {
             <Button
               style={{ display: 'block', margin: '0 auto' }}
               onClick={() => {
+                // Start missclick guard logic
                 if (missClickTimerIdRef.current && missClickGuardIsEnabled) {
                   message.info(`No more than once every ${missClickGuardMsConfig / 1000} seconds`, missClickGuardMsConfig / 1000);
                   return;
@@ -204,10 +181,9 @@ function App() {
                     missClickTimerIdRef.current = null;
                   }, missClickGuardMsConfig);
                 }
+                // end missclick guard logic
 
-                const nextWeapons = generateWeapons({ index: currentChallengeIndex, count: weaponsCount, isUnique: weaponsIsUnique });
-                setCurrentWeapons(nextWeapons);
-                sendSharedState({ challengeIndex: currentChallengeIndex, isUnique: weaponsIsUnique, count: weaponsCount, weapons: nextWeapons });
+                dispatchUserShareableState({ type: 'regenerateWeapons' });
 
                 if (isWithBackground) {
                   setCurrentBackgroundSrc(generateRandomBackgroundSrc(currentBackgroundSrc!));
@@ -223,7 +199,7 @@ function App() {
           style={{ marginTop: 20, padding: 20 }}
         >
           <List>
-            {currentWeapons.map(({ name, ammoType }, i) => {
+            {userShareableState.weapons.map(({ name, ammoType }, i) => {
               return (
                 <List.Item
                   key={name + i}
@@ -290,12 +266,4 @@ function App() {
   );
 }
 
-function Root() {
-  return (
-    <Router>
-      <App />
-    </Router>
-  );
-}
-
-render(<Root />, document.getElementById('root'));
+render(<App />, document.getElementById('root'));

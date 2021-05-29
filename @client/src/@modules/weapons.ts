@@ -1,4 +1,4 @@
-import { Weapon } from '../../../shared/types';
+import { Weapon } from '@apex-roller/shared';
 
 
 const weapons: readonly Weapon[] = [

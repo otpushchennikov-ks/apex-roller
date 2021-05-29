@@ -1,5 +1,4 @@
-import { Weapon } from '../../../shared/types';
-import { ChallengeFactory, Challenge } from '../../../shared/types';
+import { ChallengeFactory, Challenge, Weapon } from '@apex-roller/shared';
 import weapons from '@modules/weapons';
 import generateRandomIndex from '@utils/generateRandomIndex';
 
