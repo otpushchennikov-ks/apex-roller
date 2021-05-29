@@ -13,7 +13,7 @@ const httpServer = express()
   .get('/*', (_, res) => res.sendFile(path.join(clientBuildPath, 'index.html')))
   .listen(PORT, () => console.log(`Server is running in port: ${PORT}`));
 
-const rooms = new Rooms(50);
+const rooms = new Rooms(50, 3);
 
 RollerWebSocketServer(
   new WebSocketServer({ server: httpServer }),
@@ -54,6 +54,10 @@ RollerWebSocketServer(
       console.log(`updated room state: ${roomId} <- ${JSON.stringify(room.state)}`);
     },
     onClose: (context) => {
+      if (!context.userId) {
+        return;
+      }
+      rooms.disconnectFromAllRooms(context.userId);
       console.log(`user ${context.userId} disconnected`);
     }
   }
