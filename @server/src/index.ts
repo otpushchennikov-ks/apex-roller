@@ -22,19 +22,19 @@ RollerWebSocketServer(new WebSocketServer({ server: httpServer }), {
     const { roomId, userId, state } = message;
     context.userId = userId;
 
-    const existingConnection = rooms.registerUser(userId, connection);
+    const existingConnection = rooms.registerUser(userId, roomId, connection);
     existingConnection?.send(MessageCodec.encode({
       eventType: 'disconnect'
     }));
 
     const room = rooms.createOrJoinRoom(roomId, userId, state);
-    
     if (isLeft(room)) {
       return {
         eventType: 'error',
         message: room.left,
       };  
     }
+    context.roomId = roomId;
 
     return {
       eventType: 'connected',
@@ -44,15 +44,15 @@ RollerWebSocketServer(new WebSocketServer({ server: httpServer }), {
     };
   },
   onUpdate: (message, context) => {
-    if (!context.userId) {
+    if (!context.userId || !context.roomId) {
       return {
         eventType: 'error',
         message: 'update: not connected to any room',
       };
     };
 
-    const { roomId, state } = message;
-    const result = rooms.updateRoomState(context.userId, roomId, state);
+    const { state } = message;
+    const result = rooms.updateRoomState(context.userId, context.roomId, state);
     if (isLeft(result)) {
       return {
         eventType: 'error',
@@ -60,7 +60,7 @@ RollerWebSocketServer(new WebSocketServer({ server: httpServer }), {
       };
     }
 
-    console.log(`updated room state: ${roomId} <- ${JSON.stringify(state)}`);
+    console.log(`updated room state: ${context.roomId} <- ${JSON.stringify(state)}`);
   },
   onClose: (context) => {
     if (!context.userId) {

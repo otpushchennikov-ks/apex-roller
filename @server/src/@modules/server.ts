@@ -2,11 +2,12 @@ import WebSocket, { Server } from 'ws';
 import { PathReporter } from 'io-ts/lib/PathReporter';
 import { isLeft } from 'fp-ts/lib/Either';
 
-import { ConnectMessage, UpdateMessage, Message, MessageCodec, UserId } from '@apex-roller/shared';
+import { ConnectMessage, UpdateMessage, Message, MessageCodec, UserId, RoomId } from '@apex-roller/shared';
 
 export type ConnectionContext = {
   isAlive: boolean,
   userId?: UserId,
+  roomId?: RoomId,
 }
 
 export function RollerWebSocketServer(

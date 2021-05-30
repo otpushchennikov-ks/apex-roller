@@ -41,13 +41,13 @@ export class Rooms {
 
   private rooms: Map<RoomId, Room>
   private users: Map<UserId, Set<RoomId>>
-  private userConnections: Map<UserId, WebSocket>
+  private userConnections: Map<string, WebSocket>
 
   constructor(maxRooms: Number, maxRoomsPerUser: Number) {
     this.maxRooms = maxRooms;
     this.maxRoomsPerUser = maxRoomsPerUser;
     this.rooms = new Map();
-    this.users = new Map(); 
+    this.users = new Map();
     this.userConnections = new Map();
   }
 
@@ -68,9 +68,11 @@ export class Rooms {
     this.getUserRooms(userId)?.delete(roomId);
   }
 
-  registerUser(userId: UserId, connection: WebSocket): WebSocket | undefined {
-    const existingConnection = this.userConnections.get(userId);
-    this.userConnections.set(userId, connection);
+  registerUser(userId: UserId, roomId: RoomId, connection: WebSocket): WebSocket | undefined {
+    // todo javascript Map
+    // TODO this map can grow infinitely this is a security risk !!!
+    const existingConnection = this.userConnections.get(userId + roomId);
+    this.userConnections.set(userId + roomId, connection);
     return existingConnection;
   }
 
