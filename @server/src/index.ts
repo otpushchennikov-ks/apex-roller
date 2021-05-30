@@ -1,9 +1,10 @@
 import path from 'path';
 import express from 'express';
-
 import { Server as WebSocketServer } from 'ws';
-import { User, Rooms } from './@modules/room'
-import { RollerWebSocketServer } from './@modules/server'
+import { User, Rooms } from './@modules/room';
+import { RollerWebSocketServer } from './@modules/server';
+import { isLeft, isRight } from 'fp-ts/lib/Either';
+
 
 const PORT = process.env.PORT || 5000;
 
@@ -25,11 +26,18 @@ RollerWebSocketServer(
 
       const room = rooms.createOrJoinRoom(roomId, user, state);
       
+      if (isLeft(room)) {
+        return {
+          eventType: 'error',
+          message: room.left,
+        };  
+      }
+
       return {
         eventType: 'connected',
-        isHost: room.host.id == user.id,
+        isHost: room.right.host.id == user.id,
         roomId,
-        state: room.state
+        state: room.right.state
       };
     },
     onUpdate: (message, context) => {

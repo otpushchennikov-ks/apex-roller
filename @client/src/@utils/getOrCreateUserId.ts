@@ -1,7 +1,7 @@
 import { v4 as uuid } from 'uuid';
 
 
-const getUserId = () => {
+const getOrCreateUserId = () => {
   if (!localStorage.getItem('userId')) {
     localStorage.setItem('userId', uuid());
   }
@@ -9,4 +9,4 @@ const getUserId = () => {
   return localStorage.getItem('userId')!;
 };
 
-export default getUserId;
+export default getOrCreateUserId;

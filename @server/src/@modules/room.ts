@@ -1,5 +1,8 @@
-import WebSocket from 'ws'
+import WebSocket from 'ws';
 import { UserShareableState, UpdateMessage, RoomId, UserId, MessageCodec } from '@apex-roller/shared';
+import { left, right, Either, isLeft } from 'fp-ts/lib/Either';
+
+
 
 export class User {
   id: UserId
@@ -74,13 +77,13 @@ export class Rooms {
     const rooms = this.getUserRooms(userId);
     if (rooms) {
       if (rooms.size >= this.maxRoomsPerUser) {
-        // TODO fail properly
-        throw new Error(`cannot enter room: max user rooms (${this.maxRoomsPerUser}) reached`)
+        return left(`cannot enter room: max user rooms (${this.maxRoomsPerUser}) reached`);
       }
       rooms.add(roomId);
     } else {
       this.users.set(userId, new Set([roomId]));
     }
+    return right(null);
   }
 
   private unlinkUserFromRoom(userId: UserId, roomId: RoomId) {
@@ -95,23 +98,32 @@ export class Rooms {
     return this.users.get(userId);
   }
 
-  createOrJoinRoom(roomId: RoomId, user: User, state: UserShareableState): Room {
+  createOrJoinRoom(roomId: RoomId, user: User, state: UserShareableState): Either<string, Room> {
     let room = this.getRoom(roomId);
+
     if (room) {
-      this.linkUserToRoom(user.id, roomId);
+      const maybeError = this.linkUserToRoom(user.id, roomId);
+      if (isLeft(maybeError)) {
+        return maybeError;
+      }
+
       if (!room.users.has(user.id)) {
         room.addUser(user);
       }
     } else {
       if (this.rooms.size >= this.maxRooms) {
-        // TODO fail properly OR depart user from a room
-        throw new Error(`cannot create more rooms: max rooms (${this.maxRooms}) reached`);
+        return left(`cannot create more rooms: max rooms (${this.maxRooms}) reached`);
       }
       room = new Room(roomId, user, state);
-      this.linkUserToRoom(user.id, roomId);
+      const maybeError = this.linkUserToRoom(user.id, roomId);
+      if (isLeft(maybeError)) {
+        return maybeError;
+      }
+      
       this.rooms.set(roomId, room);
     }
-    return room;
+
+    return right(room);
   }
 
   disconnectFromRoom(roomId: RoomId, userId: UserId) {

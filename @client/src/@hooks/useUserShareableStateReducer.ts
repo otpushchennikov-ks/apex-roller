@@ -1,25 +1,27 @@
 import challenges from '@modules/challenges';
 import { useReducer, useEffect } from 'react';
-import { UserShareableState as State } from '@apex-roller/shared';
-import { useEffectOnce, useLocalStorage } from 'react-use';
+import { UserShareableState } from '@apex-roller/shared';
+import { useLocalStorage } from 'react-use';
+import generateRandomIndex from '@utils/generateRandomIndex';
 
 
 const statePersistKey = 'user-shareable-state-persist';
 
-type Action = 
+export type UserShareableStateAction = 
   | { type: 'changeIndex', nextIndex: number }
   | { type: 'changeCount', nextCount: number }
   | { type: 'changeIsUnique', nextIsUnique: boolean }
-  | { type: 'regenerateWeapons' };
+  | { type: 'regenerateWeapons' }
+  | { type: 'replaceState', nextState: UserShareableState };
 
-const defaultState: State = {
+const defaultState: UserShareableState = {
   challengeIndex: 0,
   count: 2,
   isUnique: true,
-  weapons: [],
+  weapons: challenges[generateRandomIndex(challenges.length)].runFn(2, true),
 };
 
-const reducer = (state: State, action: Action): State => {
+const reducer = (state: UserShareableState, action: UserShareableStateAction): UserShareableState => {
   switch (action.type) {
     case 'changeIndex':
       return {
@@ -32,7 +34,7 @@ const reducer = (state: State, action: Action): State => {
       return {
         ...state,
         count: action.nextCount,
-        weapons: challenges[state.challengeIndex].runFn(state.count, state.isUnique),
+        weapons: challenges[state.challengeIndex].runFn(action.nextCount, state.isUnique),
       };
 
     case 'changeIsUnique':
@@ -47,6 +49,9 @@ const reducer = (state: State, action: Action): State => {
         ...state,
         weapons: challenges[state.challengeIndex].runFn(state.count, state.isUnique),
       };
+    
+    case 'replaceState':
+      return action.nextState;
 
     default:
       return state;
@@ -55,16 +60,8 @@ const reducer = (state: State, action: Action): State => {
 
 export default function useUserShareableStateReducer() {
   const [initialState, persistState] = useLocalStorage(statePersistKey, defaultState);
-
-  const [state, dispatch] =  useReducer(reducer, initialState!);
-
+  const [state, dispatch] = useReducer(reducer, initialState!);
   useEffect(() => persistState(state), [state, persistState]);
-
-  useEffectOnce(() => {
-    if (!state.weapons.length) {
-      dispatch({ type: 'regenerateWeapons' });
-    }
-  });
 
   return {
     userShareableState: state,

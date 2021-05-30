@@ -1,49 +1,112 @@
-// import { UserShareableState, ConnectMessageCodec } from '../../../shared/types';
-import { UserShareableState, MessageCodec, RoomId, UserId } from '@apex-roller/shared';
-import { useEffectOnce, useLocation, useLocalStorage } from 'react-use';
-import { useRef, useEffect } from 'react';
-import getUserId from '@utils/getUserId';
+import { UserShareableState, MessageCodec, UserIdCodec, RoomIdCodec } from '@apex-roller/shared';
+import { useEffectOnce, useLocation } from 'react-use';
+import { useState, Dispatch, useRef, useEffect } from 'react';
+import getOrCreateUserId from '@utils/getOrCreateUserId';
+import { UserShareableStateAction } from './useUserShareableStateReducer';
+import { isLeft } from 'fp-ts/lib/Either';
+import { PathReporter } from 'io-ts/lib/PathReporter';
+import { message as noty } from 'antd';
 
 
-const host = process.env.NODE_ENV === 'production' ?
-  window.location.origin.replace(/^http/, 'ws')
-  :
-  'ws://localhost:5000';
+const productionWsHost = window.location.origin.replace(/^http/, 'ws');
+const host = process.env.NODE_ENV === 'production' ? productionWsHost : 'ws://localhost:5000';
 
-export default function useWebsocket(userShareableState: UserShareableState) {
-  const wsClientRef = useRef<WebSocket | null>(null);
-  const weaponsIsInitRef = useRef(false);
+export default function useWebsocket({
+  userShareableState,
+  dispatchUserShareableState,
+}: {
+  userShareableState: UserShareableState,
+  dispatchUserShareableState: Dispatch<UserShareableStateAction>
+}) {
+  const clientRef = useRef<WebSocket | null>(null);
+  const [isHost, setIsHost] = useState(false);
   const location = useLocation();
-  const roomId = location.pathname?.slice(1);
+  const uriWithoutLeadingSlash = location.pathname?.slice(1);
 
-  // Инициализация wsClient и отправка сообщения 'connect' при получении
-  // корректных weapons из persisted state
-  useEffect(() => {
-    if (
-      !roomId ||
-      weaponsIsInitRef.current ||
-      !userShareableState.weapons.length
-    ) return;
+  useEffectOnce(() => {
+    const maybeUserId = UserIdCodec.decode(getOrCreateUserId());
+    if (!uriWithoutLeadingSlash || isLeft(maybeUserId)) return;
 
-    weaponsIsInitRef.current = true;
+    const maybeRoomId = RoomIdCodec.decode(uriWithoutLeadingSlash);
+    if (isLeft(maybeRoomId)) {
+      noty.error(PathReporter.report(maybeRoomId));
+      return;
+    }
 
-    wsClientRef.current = new WebSocket(host);
+    clientRef.current = new WebSocket(host);
 
-    wsClientRef.current!.onopen = () => {
-      const connectData = MessageCodec.encode({
-        eventType: 'connect',
-        roomId: roomId as RoomId,
-        userId: getUserId() as UserId,
+    clientRef.current!.onopen = () => {
+      clientRef.current!.send(MessageCodec.encode({
+        eventType: 'connect', 
+        roomId: maybeRoomId.right,
+        userId: maybeUserId.right,
         state: {
           challengeIndex: userShareableState.challengeIndex,
           isUnique: userShareableState.isUnique,
           count: userShareableState.count,
           weapons: userShareableState.weapons,
         },
-      });
-      
-      // wsClientRef.current!.send(JSON.stringify(connectData));
-
+      }));
     };
-  }, [userShareableState, roomId]);
+
+    clientRef.current!.onmessage = ({ data }) => {
+      const maybeMessage = MessageCodec.decode(data);
+
+      if (isLeft(maybeMessage)) {
+        console.log(PathReporter.report(maybeMessage));
+        return;
+      }
+
+      const message = maybeMessage.right;
+
+      switch (message.eventType) {
+        case 'connected': {
+          setIsHost(message.isHost);
+
+          if (!message.isHost) {
+            dispatchUserShareableState({ type: 'replaceState', nextState: message.state });
+          }
+
+          return;
+        }
+
+        case 'update': {
+          if (!isHost) {
+            dispatchUserShareableState({ type: 'replaceState', nextState: message.state });
+          }
+
+          return;
+        }
+        
+        case 'error': {
+          noty.error(message.message);
+          return;
+        }
+
+        default: {
+          return;
+        }
+      }
+    };
+  });
+  
+
+  useEffect(() => {
+    if (!isHost || !uriWithoutLeadingSlash) return;
+
+    const maybeRoomId = RoomIdCodec.decode(uriWithoutLeadingSlash);
+
+    if (isLeft(maybeRoomId)) {
+      noty.error(PathReporter.report(maybeRoomId));
+      return;
+    }
+
+    clientRef.current?.send(MessageCodec.encode({
+      eventType: 'update',
+      roomId: maybeRoomId.right,
+      state: userShareableState,
+    }));
+  }, [userShareableState, uriWithoutLeadingSlash, isHost]);
+
+  return { isHost };
 }

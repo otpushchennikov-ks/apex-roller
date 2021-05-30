@@ -39,16 +39,16 @@ const UserShareableStateCodec = T.type({
 })
 export type UserShareableState = T.TypeOf<typeof UserShareableStateCodec>
 
-const RoomIdCodec = T.brand(
+export const RoomIdCodec = T.brand(
   T.string,
-  (s): s is T.Branded<string, {readonly RoomId: symbol}> => s.length <= 36,
+  (s): s is T.Branded<string, { readonly RoomId: symbol }> => s.length <= 10 && s.length > 0,
   'RoomId'
 )
 export type RoomId = T.TypeOf<typeof RoomIdCodec>
-const UserIdCodec = T.brand(
+
+export const UserIdCodec = T.brand(
   T.string,
-  // TODO do we want to verify that this is a UUID? (probably not)
-  (s): s is T.Branded<string, {readonly UserId: symbol}> => s.length == 36,
+  (s): s is T.Branded<string, { readonly UserId: symbol }> => s.length === 36,
   'UserId'
 )
 export type UserId = T.TypeOf<typeof UserIdCodec>

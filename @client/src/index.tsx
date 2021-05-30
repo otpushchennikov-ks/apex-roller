@@ -34,82 +34,21 @@ const ammoTypeImagesMap: Record<AmmoType, string> = {
 };
 
 export default function App() {
-  const [isHost, setIsHost] = useState(true);
   const [isWithBackground, setIsWithBackground] = useState(false);
   const [currentBackgroundSrc, setCurrentBackgroundSrc] = useState<string | null>(null);
   const [missClickGuardIsEnabled, setMissClickGuardIsEnabled] = useState(false);
   const [missClickGuardMsConfig, setMissClickGuardMsConfig] = useState(3000);
-
   const missClickTimerIdRef = useRef<number | null>(null);
-  const wsClientRef = useRef<WebSocket | null>(null);
 
-  const { userShareableState, dispatchUserShareableState } = useUserShareableStateReducer();
+  const {
+    userShareableState,
+    dispatchUserShareableState,
+  } = useUserShareableStateReducer();
 
-  useWebsocket(userShareableState);
-
-  // useEffectOnce(() => {
-  //   dispatchUserShareableState({ type: 'changeWeapons', currentIndex: userShareableState.challengeIndex });
-
-  //   const nextWeapons = generateWeapons({ index: currentChallengeIndex, count: weaponsCount, isUnique: weaponsIsUnique });
-  //   setCurrentWeapons(nextWeapons);
-
-  //   if (!roomId) return;
-
-  //   const wsClient = new WebSocket(wsHost);
-  //   wsClient.onopen = () => {
-  //     wsClient.send(JSON.stringify({
-  //       eventType: 'connect',
-  //       roomId,
-  //       userId: getUserId(),
-  //       state: {
-  //         challengeIndex: currentChallengeIndex,
-  //         isUnique: weaponsIsUnique,
-  //         count: weaponsCount,
-  //         weapons: nextWeapons,
-  //       },
-  //     }));
-
-  //     wsClient.onmessage = message => {
-  //       const data = JSON.parse(message.data);
-
-  //       switch (data.eventType) {
-  //         case 'connected': {
-  //           wsClientRef.current = wsClient;
-  //           setIsHost(data.isHost);
-
-  //           const { state: { challengeIndex, isUnique, count, weapons }} = data;
-
-  //           setCurrentChallengeIndex(challengeIndex);
-  //           setWeaponsIsUnique(isUnique);
-  //           setWeaponsCount(count);
-  //           setCurrentWeapons(weapons);
-  //           break;
-  //         }
-
-  //         case 'update': {
-  //           const { state: { challengeIndex, isUnique, count, weapons }} = data;
-
-  //           setCurrentChallengeIndex(challengeIndex);
-  //           setWeaponsIsUnique(isUnique);
-  //           setWeaponsCount(count);
-  //           setCurrentWeapons(weapons);
-  //           break;
-  //         }
-
-  //         default:
-  //           break;
-  //       }
-  //     };
-  //   };
-  // });
-
-  // const sendSharedState = (state: UserShareableState) => {
-  //   wsClientRef.current?.send(JSON.stringify({
-  //     eventType: 'update',
-  //     roomId,
-  //     state,
-  //   }));
-  // };
+  const { isHost } = useWebsocket({
+    userShareableState,
+    dispatchUserShareableState,
+  });
 
   return (
     <div
