@@ -5,6 +5,7 @@
   "dependencies": {
     "@types/express": "^4.17.12",
     "@types/ws": "^7.4.4",
+    "concurrently": "^6.2.0",
     "express": "^4.17.1",
     "fp-ts": "^2.10.5",
     "io-ts": "^2.2.16",
@@ -13,9 +14,9 @@
     "ws": "^7.4.6"
   },
   "scripts": {
-    "start": "node src/index.js",
     "build": "tsc",
-    "tsc:watch": "tsc --watch",
-    "dev": "nodemon src/index.js"
+    "start": "node src/index.js",
+    "dev": "concurrently --kill-others \"npm run _tsc:watch\" \"nodemon src/index.js\"",
+    "_tsc:watch": "tsc --watch"
   }
 }

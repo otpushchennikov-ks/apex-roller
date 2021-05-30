@@ -4,5 +4,23 @@
   "version": "0.0.0",
   "workspaces": [
     "./@shared"
-  ]
+  ],
+  "scripts": {
+    "preinstall": "npm run install:shared && npm run install:client && npm run install:server",
+    "install:shared": "cd @shared && npm ci && cd ..",
+    "install:client": "cd @client && npm ci && cd ..",
+    "install:server": "cd @server && npm ci && cd ..",
+    "dev:client": "cd @client && npm run dev",
+    "dev:server": "cd @server && npm run dev",
+    "dev:shared": "cd @shared && npm run dev",
+    "build:shared": "cd @shared && npm run build && cd ..",
+    "build:client": "cd @client && npm run build && cd ..",
+    "build:server": "cd @server && npm run build && cd ..",
+    "uninstall:all": "rm -rf @shared/node_modules && rm -rf @client/node_modules && rm -rf @server/node_modules && rm -rf node_modules",
+    "build": "npm run build:shared && npm run build:client && npm run build:server",
+    "start": "cd @server && npm run start"
+  },
+  "dependencies": {
+    "rimraf": "^3.0.2"
+  }
 }
