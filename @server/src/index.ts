@@ -8,7 +8,7 @@ import { isLeft, isRight } from 'fp-ts/lib/Either';
 
 const PORT = process.env.PORT || 5000;
 
-const clientBuildPath = path.join(__dirname, '..', '..', 'client', 'build');
+const clientBuildPath = path.join(__dirname, '..', '..', '@client', 'build');
 const httpServer = express()
   .use(express.static(clientBuildPath))
   .get('/*', (_, res) => res.sendFile(path.join(clientBuildPath, 'index.html')))

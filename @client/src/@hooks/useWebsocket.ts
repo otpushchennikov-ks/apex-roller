@@ -24,8 +24,15 @@ export default function useWebsocket({
   const uriWithoutLeadingSlash = location.pathname?.slice(1);
 
   useEffectOnce(() => {
+    if (!uriWithoutLeadingSlash) {
+      setIsHost(true);
+      return;
+    }
+
     const maybeUserId = UserIdCodec.decode(getOrCreateUserId());
-    if (!uriWithoutLeadingSlash || isLeft(maybeUserId)) return;
+    if (isLeft(maybeUserId)) {
+      return;
+    };
 
     const maybeRoomId = RoomIdCodec.decode(uriWithoutLeadingSlash);
     if (isLeft(maybeRoomId)) {
@@ -66,7 +73,6 @@ export default function useWebsocket({
           if (!message.isHost) {
             dispatchUserShareableState({ type: 'replaceState', nextState: message.state });
           }
-
           return;
         }
 
@@ -74,7 +80,6 @@ export default function useWebsocket({
           if (!isHost) {
             dispatchUserShareableState({ type: 'replaceState', nextState: message.state });
           }
-
           return;
         }
         
