@@ -56,12 +56,14 @@ export type UserId = T.TypeOf<typeof UserIdCodec>
 const ConnectEventTypeCodec = T.literal('connect')
 const ConnectedEventTypeCodec = T.literal('connected')
 const UpdateEventTypeCodec  = T.literal('update')
+const DisconnectEventTypeCodec  = T.literal('disconnect')
 const ErrorEventTypeCodec  = T.literal('error')
 
 const EventTypeCodec = T.union([
   ConnectEventTypeCodec,
   ConnectedEventTypeCodec,
   UpdateEventTypeCodec,
+  DisconnectEventTypeCodec,
   ErrorEventTypeCodec
 ])
 export type EventType = T.TypeOf<typeof EventTypeCodec>
@@ -89,6 +91,11 @@ export const UpdateMessageCodec = T.type({
 })
 export type UpdateMessage = T.TypeOf<typeof UpdateMessageCodec>
 
+export const DisconnectMessageCodec = T.type({
+  eventType: DisconnectEventTypeCodec
+})
+export type DisconnectMessage = T.TypeOf<typeof DisconnectMessageCodec>
+
 export const ErrorMessageCodec = T.type({
   eventType: ErrorEventTypeCodec,
   message: T.string
@@ -112,6 +119,7 @@ export const MessageCodec = JSONCodec.pipe(T.union([
   ConnectMessageCodec,
   ConnectedMessageCodec,
   UpdateMessageCodec,
+  DisconnectMessageCodec,
   ErrorMessageCodec
 ]))
 

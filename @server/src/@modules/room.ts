@@ -1,61 +1,37 @@
 import WebSocket from 'ws';
-import { UserShareableState, UpdateMessage, RoomId, UserId, MessageCodec } from '@apex-roller/shared';
+import { UserShareableState, RoomId, UserId, MessageCodec } from '@apex-roller/shared';
 import { left, right, Either, isLeft } from 'fp-ts/lib/Either';
 
 
-
-export class User {
-  id: UserId
-  connection: WebSocket
-
-  constructor(id: UserId, connection: WebSocket) {
-    this.id = id;
-    this.connection = connection;
-  }
-}
-
 export class Room {
   id: RoomId
-  host: User
   state: UserShareableState
-  users: Map<UserId, User>
+  hostId: UserId
+  userIds: Set<UserId>
 
-  constructor(id: RoomId, host: User, state: UserShareableState) {
+  constructor(id: RoomId, host: UserId, state: UserShareableState) {
     this.id = id;
-    this.host = host;
     this.state = state;
-    this.users = new Map();
-    this.addUser(this.host);
+    this.hostId = host;
+    this.userIds = new Set();
+    this.addUser(this.hostId);
   }
 
-  addUser(user: User) {
-    this.users.set(user.id, user);
+  addUser(userId: UserId) {
+    this.userIds.add(userId);
   }
 
-  removeUser(userId: UserId): { isEmpty: boolean, newHost?: User } {
-    this.users.delete(userId);
-    if (userId == this.host.id) {
-      const { done, value } = this.users.values().next();
+  removeUser(userId: UserId): { isEmpty: boolean, newHostId?: UserId } {
+    this.userIds.delete(userId);
+    if (userId == this.hostId) {
+      const { done, value } = this.userIds.values().next();
       if (done) {
         return { isEmpty: true };
       }
-      this.host = value;
-      return { isEmpty: false, newHost: this.host }
+      this.hostId = value;
+      return { isEmpty: false, newHostId: this.hostId }
     }
     return { isEmpty: false }
-  }
-
-  broadcast(message: UpdateMessage) {
-    const serializedMessage = MessageCodec.encode(message);
-    this.users.forEach((user, userId) => {
-      if (userId === this.host.id) return;
-      user.connection.send(serializedMessage);
-    });
-  }
-
-  updateState(state: UserShareableState) {
-    this.state = state;
-    this.broadcast({eventType: 'update', roomId: this.id, state: this.state});
   }
 }
 
@@ -65,12 +41,14 @@ export class Rooms {
 
   private rooms: Map<RoomId, Room>
   private users: Map<UserId, Set<RoomId>>
+  private userConnections: Map<UserId, WebSocket>
 
   constructor(maxRooms: Number, maxRoomsPerUser: Number) {
     this.maxRooms = maxRooms;
     this.maxRoomsPerUser = maxRoomsPerUser;
     this.rooms = new Map();
     this.users = new Map(); 
+    this.userConnections = new Map();
   }
 
   private linkUserToRoom(userId: UserId, roomId: RoomId) {
@@ -90,6 +68,29 @@ export class Rooms {
     this.getUserRooms(userId)?.delete(roomId);
   }
 
+  registerUser(userId: UserId, connection: WebSocket): WebSocket | undefined {
+    const existingConnection = this.userConnections.get(userId);
+    this.userConnections.set(userId, connection);
+    return existingConnection;
+  }
+
+  updateRoomState(userId: UserId, roomId: RoomId, state: UserShareableState): Either<string, null> {
+    const room = this.getRoom(roomId);
+    if (!room) {
+      return left('room does not exist');
+    }
+    if (room?.hostId !== userId) {
+      return left('not a host');
+    }
+    room.state = state;
+    room?.userIds.forEach(userId => {
+      // TODO do we want to send update to host (back)?
+      if (userId === room.hostId) return;
+      this.userConnections.get(userId)?.send(MessageCodec.encode({ eventType: 'update', roomId, state }));
+    });
+    return right(null);
+  }
+
   getRoom(roomId: RoomId): Room | undefined {
     return this.rooms.get(roomId);
   }
@@ -98,24 +99,24 @@ export class Rooms {
     return this.users.get(userId);
   }
 
-  createOrJoinRoom(roomId: RoomId, user: User, state: UserShareableState): Either<string, Room> {
+  createOrJoinRoom(roomId: RoomId, userId: UserId, state: UserShareableState): Either<string, Room> {
     let room = this.getRoom(roomId);
 
     if (room) {
-      const maybeError = this.linkUserToRoom(user.id, roomId);
+      const maybeError = this.linkUserToRoom(userId, roomId);
       if (isLeft(maybeError)) {
         return maybeError;
       }
 
-      if (!room.users.has(user.id)) {
-        room.addUser(user);
+      if (!room.userIds.has(userId)) {
+        room.addUser(userId);
       }
     } else {
       if (this.rooms.size >= this.maxRooms) {
         return left(`cannot create more rooms: max rooms (${this.maxRooms}) reached`);
       }
-      room = new Room(roomId, user, state);
-      const maybeError = this.linkUserToRoom(user.id, roomId);
+      room = new Room(roomId, userId, state);
+      const maybeError = this.linkUserToRoom(userId, roomId);
       if (isLeft(maybeError)) {
         return maybeError;
       }
@@ -132,11 +133,11 @@ export class Rooms {
       return;
     }
     this.unlinkUserFromRoom(userId, roomId);
-    const { isEmpty, newHost } = room?.removeUser(userId)!;
+    const { isEmpty, newHostId: newHost } = room?.removeUser(userId)!;
     if (isEmpty) {
       this.rooms.delete(room.id);
     } else if (newHost) {
-      newHost.connection.send(MessageCodec.encode({
+      this.userConnections.get(newHost)?.send(MessageCodec.encode({
         eventType: 'connected',
         isHost: true,
         roomId,

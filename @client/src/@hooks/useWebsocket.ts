@@ -82,6 +82,11 @@ export default function useWebsocket({
           }
           return;
         }
+
+        case 'disconnect': {
+          console.log(message);
+          return;
+        }
         
         case 'error': {
           noty.error(message.message);

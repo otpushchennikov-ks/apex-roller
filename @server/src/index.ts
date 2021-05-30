@@ -1,9 +1,10 @@
 import path from 'path';
 import express from 'express';
 import { Server as WebSocketServer } from 'ws';
-import { User, Rooms } from './@modules/room';
+import { Rooms } from './@modules/room';
 import { RollerWebSocketServer } from './@modules/server';
-import { isLeft, isRight } from 'fp-ts/lib/Either';
+import { isLeft } from 'fp-ts/lib/Either';
+import { MessageCodec } from '../../@shared';
 
 
 const PORT = process.env.PORT || 5000;
@@ -16,57 +17,55 @@ const httpServer = express()
 
 const rooms = new Rooms(50, 3);
 
-RollerWebSocketServer(
-  new WebSocketServer({ server: httpServer }),
-  {
-    onConnect: (message, context, connection) => {
-      const { roomId, userId, state } = message;
-      const user = new User(userId, connection);
-      context.userId = userId;
+RollerWebSocketServer(new WebSocketServer({ server: httpServer }), {
+  onConnect: (message, context, connection) => {
+    const { roomId, userId, state } = message;
+    context.userId = userId;
 
-      const room = rooms.createOrJoinRoom(roomId, user, state);
-      
-      if (isLeft(room)) {
-        return {
-          eventType: 'error',
-          message: room.left,
-        };  
-      }
+    const existingConnection = rooms.registerUser(userId, connection);
+    existingConnection?.send(MessageCodec.encode({
+      eventType: 'disconnect'
+    }));
 
+    const room = rooms.createOrJoinRoom(roomId, userId, state);
+    
+    if (isLeft(room)) {
       return {
-        eventType: 'connected',
-        isHost: room.right.host.id == user.id,
-        roomId,
-        state: room.right.state
-      };
-    },
-    onUpdate: (message, context) => {
-      if (!context.userId) {
-        return {
-          eventType: 'error',
-          message: 'update: not connected to any room',
-        };
-      };
-
-      const { roomId, state } = message;
-      const room = rooms.getRoom(roomId);
-
-      if (!room || room.host.id !== context.userId) {
-        return {
-          eventType: 'error',
-          message: 'update: room does not exists or user is not a host',
-        };
-      };
-
-      room.updateState(state);
-      console.log(`updated room state: ${roomId} <- ${JSON.stringify(room.state)}`);
-    },
-    onClose: (context) => {
-      if (!context.userId) {
-        return;
-      }
-      rooms.disconnectFromAllRooms(context.userId);
-      console.log(`user ${context.userId} disconnected`);
+        eventType: 'error',
+        message: room.left,
+      };  
     }
+
+    return {
+      eventType: 'connected',
+      isHost: room.right.hostId == userId,
+      roomId,
+      state: room.right.state
+    };
+  },
+  onUpdate: (message, context) => {
+    if (!context.userId) {
+      return {
+        eventType: 'error',
+        message: 'update: not connected to any room',
+      };
+    };
+
+    const { roomId, state } = message;
+    const result = rooms.updateRoomState(context.userId, roomId, state);
+    if (isLeft(result)) {
+      return {
+        eventType: 'error',
+        message: result.left,
+      };
+    }
+
+    console.log(`updated room state: ${roomId} <- ${JSON.stringify(state)}`);
+  },
+  onClose: (context) => {
+    if (!context.userId) {
+      return;
+    }
+    console.log(`user ${context.userId} disconnected`);
   }
-)
+});
