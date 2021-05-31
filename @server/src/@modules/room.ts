@@ -1,6 +1,7 @@
 import WebSocket from 'ws';
+import { left, right, Either } from 'fp-ts/lib/Either';
+
 import { UserShareableState, RoomId, UserId, MessageCodec } from '@apex-roller/shared';
-import { left, right, Either, isLeft } from 'fp-ts/lib/Either';
 
 
 export class Room {
@@ -37,119 +38,110 @@ export class Room {
 
 export class Rooms {
   maxRooms: Number
+  maxUsers: Number
   maxRoomsPerUser: Number
 
   private rooms: Map<RoomId, Room>
-  private users: Map<UserId, Set<RoomId>>
-  private userConnections: Map<string, WebSocket>
+  private userConnections: Map<UserId, Map<RoomId, WebSocket>>
 
-  constructor(maxRooms: Number, maxRoomsPerUser: Number) {
+  constructor(maxRooms: Number, maxUsers: Number, maxRoomsPerUser: Number) {
     this.maxRooms = maxRooms;
+    this.maxUsers = maxUsers;
     this.maxRoomsPerUser = maxRoomsPerUser;
     this.rooms = new Map();
-    this.users = new Map();
     this.userConnections = new Map();
   }
 
-  private linkUserToRoom(userId: UserId, roomId: RoomId) {
-    const rooms = this.getUserRooms(userId);
-    if (rooms) {
-      if (rooms.size >= this.maxRoomsPerUser) {
+  /**
+   * Creates a room with user as host, or joins a room.
+   * If user was not previously known to system, also registers user.
+   * 
+   * @returns error if any of system limits has been reached; reference to created room otherwise.
+   * If user has joined a room they were previously in, also returns handle to the previous connection.
+   */
+  createOrJoinRoom(
+    roomId: RoomId, userId: UserId, connection: WebSocket, state: UserShareableState
+  ): Either<string, { room: Room, connectionToClose?: WebSocket }> {
+    const room = this.rooms.get(roomId);
+    if (!room && this.rooms.size >= this.maxRooms) {
+      return left(`cannot create more rooms: max rooms (${this.maxRooms}) reached`);
+    }
+
+    const userRooms = this.userConnections.get(userId);
+    if (userRooms) {
+      if (userRooms.size >= this.maxRoomsPerUser) {
         return left(`cannot enter room: max user rooms (${this.maxRoomsPerUser}) reached`);
       }
-      rooms.add(roomId);
     } else {
-      this.users.set(userId, new Set([roomId]));
+      if (this.userConnections.size >= this.maxUsers) {
+        return left(`cannot register user: max users (${this.maxUsers}) reached`);
+      }
     }
-    return right(null);
+    
+    // register user, returning existing connection
+    const existingConnection = userRooms?.get(roomId);
+    userRooms?.set(roomId, connection) ?? this.userConnections.set(userId, new Map([[roomId, connection]]));
+
+    if (room) {
+      room.addUser(userId);
+      return right({ room, connectionToClose: existingConnection });
+    } else {
+      const newRoom = new Room(roomId, userId, state);
+      this.rooms.set(roomId, newRoom);
+      // not possible to have existing connection here
+      existingConnection!;
+      return right({ room: newRoom });
+    }
   }
 
-  private unlinkUserFromRoom(userId: UserId, roomId: RoomId) {
-    this.getUserRooms(userId)?.delete(roomId);
-  }
-
-  registerUser(userId: UserId, roomId: RoomId, connection: WebSocket): WebSocket | undefined {
-    // todo javascript Map
-    // TODO this map can grow infinitely this is a security risk !!!
-    const existingConnection = this.userConnections.get(userId + roomId);
-    this.userConnections.set(userId + roomId, connection);
-    return existingConnection;
-  }
-
-  updateRoomState(userId: UserId, roomId: RoomId, state: UserShareableState): Either<string, null> {
-    const room = this.getRoom(roomId);
+  /**
+   * Updates room state.
+   * 
+   * @returns error if room does not exist, or user is not a host of the room; otherwise nothing.
+   */
+  updateRoomState(roomId: RoomId, userId: UserId, state: UserShareableState): Either<string, null> {
+    const room = this.rooms.get(roomId);
     if (!room) {
-      return left('room does not exist');
+      return left('cannot update: room does not exist');
     }
     if (room?.hostId !== userId) {
-      return left('not a host');
+      return left('cannot update: not a host');
     }
+
     room.state = state;
     room?.userIds.forEach(userId => {
       // TODO do we want to send update to host (back)?
       if (userId === room.hostId) return;
-      this.userConnections.get(userId)?.send(MessageCodec.encode({ eventType: 'update', roomId, state }));
+      this.userConnections.get(userId)?.get(roomId)?.send(MessageCodec.encode({ eventType: 'update', roomId, state }));
     });
     return right(null);
   }
 
-  getRoom(roomId: RoomId): Room | undefined {
-    return this.rooms.get(roomId);
-  }
-
-  getUserRooms(userId: UserId): Set<RoomId> | undefined {
-    return this.users.get(userId);
-  }
-
-  createOrJoinRoom(roomId: RoomId, userId: UserId, state: UserShareableState): Either<string, Room> {
-    let room = this.getRoom(roomId);
-
-    if (room) {
-      const maybeError = this.linkUserToRoom(userId, roomId);
-      if (isLeft(maybeError)) {
-        return maybeError;
-      }
-
-      if (!room.userIds.has(userId)) {
-        room.addUser(userId);
-      }
-    } else {
-      if (this.rooms.size >= this.maxRooms) {
-        return left(`cannot create more rooms: max rooms (${this.maxRooms}) reached`);
-      }
-      room = new Room(roomId, userId, state);
-      const maybeError = this.linkUserToRoom(userId, roomId);
-      if (isLeft(maybeError)) {
-        return maybeError;
-      }
-      
-      this.rooms.set(roomId, room);
-    }
-
-    return right(room);
-  }
-
-  disconnectFromRoom(roomId: RoomId, userId: UserId) {
-    const room = this.getRoom(roomId);
+  /**
+   * Disconnects user from room.
+   * 
+   * Does nothing if room does not exist.
+   * 
+   * If user disconnect has caused host re-election in the room, notifies the new host.
+   */
+  disconnectFromRoom(roomId: RoomId, userId: UserId): void {
+    const room = this.rooms.get(roomId);
     if (!room) {
       return;
     }
-    this.unlinkUserFromRoom(userId, roomId);
-    const { isEmpty, newHostId: newHost } = room?.removeUser(userId)!;
+    // should always exist
+    this.userConnections.get(userId)!.delete(roomId);
+    const { isEmpty, newHostId: newHost } = room!.removeUser(userId);
+
     if (isEmpty) {
       this.rooms.delete(room.id);
     } else if (newHost) {
-      this.userConnections.get(newHost)?.send(MessageCodec.encode({
+      this.userConnections.get(newHost)?.get(roomId)?.send(MessageCodec.encode({
         eventType: 'connected',
         isHost: true,
         roomId,
         state: room.state,
       }));
     }
-  }
-
-  disconnectFromAllRooms(userId: UserId) {
-    // TODO this is performance-intensive - re-elects host in every room this user was host on
-    this.getUserRooms(userId)?.forEach(roomId => this.disconnectFromRoom(roomId, userId));
   }
 }
