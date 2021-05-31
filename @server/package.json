@@ -14,9 +14,9 @@
     "ws": "^7.4.6"
   },
   "scripts": {
-    "build": "tsc",
     "start": "node src/index.js",
     "dev": "concurrently --kill-others \"npm run _tsc:watch\" \"nodemon src/index.js\"",
+    "build": "tsc",
     "_tsc:watch": "tsc --watch"
   }
 }
