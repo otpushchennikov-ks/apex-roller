@@ -4,8 +4,7 @@ import { Server as WebSocketServer } from 'ws';
 import { Rooms } from './@modules/room';
 import { RollerWebSocketServer } from './@modules/server';
 import { isLeft } from 'fp-ts/lib/Either';
-import { cons } from 'fp-ts/lib/ReadonlyNonEmptyArray';
-import { MessageCodec } from '../../@shared';
+import { MessageCodec } from '@apex-roller/shared';
 
 
 const PORT = process.env.PORT || 5000;
@@ -16,7 +15,7 @@ const httpServer = express()
   .get('/*', (_, res) => res.sendFile(path.join(clientBuildPath, 'index.html')))
   .listen(PORT, () => console.log(`Server is running in port: ${PORT}`));
 
-const rooms = new Rooms(50, 50, 3);
+const rooms = new Rooms({ maxRooms: 50, maxUsers: 50, maxRoomsPerUser: 3 });
 
 RollerWebSocketServer(
   new WebSocketServer({ server: httpServer }),

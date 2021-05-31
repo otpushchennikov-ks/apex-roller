@@ -9,6 +9,13 @@
   justify-content: space-between;
   align-items: center;
 
+  &Vertical {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-direction: column;
+  }
+
   &Highlited {
     background-color: rgba(255, 255, 255, 0.50);
     border-radius: 4px;

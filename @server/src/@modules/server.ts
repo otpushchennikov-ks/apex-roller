@@ -23,6 +23,7 @@ export function RollerWebSocketServer(
     onDisconnect: (context: ConnectionContext) => void,
   }, 
 ): Server {
+  //TODO: Убрать убращение по userId + roomId в этой мапе
   const potentialReconnects = new Map();
 
   server.on('connection', (connection, request) => {
@@ -37,10 +38,10 @@ export function RollerWebSocketServer(
       const userId = context.userId; 
       if (userId) {
         const timeoutHandle = setTimeout(() => {
-          potentialReconnects.delete(userId);
+          potentialReconnects.delete(userId + context.roomId);
           handlers.onDisconnect(context);
         }, options.reconnectTimeout);
-        potentialReconnects.set(userId, timeoutHandle);
+        potentialReconnects.set(userId + context.roomId, timeoutHandle);
       }
     };
 
@@ -64,7 +65,7 @@ export function RollerWebSocketServer(
       let response : Message | undefined;
       switch (message.eventType) {
         case 'connect': {
-          const reconnectTimeoutHandle = potentialReconnects.get(message.userId);
+          const reconnectTimeoutHandle = potentialReconnects.get(message.userId + message.roomId);
           if (reconnectTimeoutHandle) {
             clearTimeout(reconnectTimeoutHandle);
             console.log(`user ${message.userId} is reconnecting`);

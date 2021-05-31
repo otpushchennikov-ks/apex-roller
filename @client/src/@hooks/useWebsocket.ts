@@ -1,6 +1,6 @@
-import { UserShareableState, MessageCodec, UserIdCodec, RoomIdCodec } from '@apex-roller/shared';
-import { useEffectOnce, useLocation } from 'react-use';
-import { useState, Dispatch, useRef, useEffect } from 'react';
+import { UserShareableState, MessageCodec, RoomIdCodec } from '@apex-roller/shared';
+import { useEffectOnce, useLocation, usePrevious } from 'react-use';
+import { useState, Dispatch, useRef, useEffect, useCallback } from 'react';
 import getOrCreateUserId from '@utils/getOrCreateUserId';
 import { UserShareableStateAction } from './useUserShareableStateReducer';
 import { isLeft } from 'fp-ts/lib/Either';
@@ -10,6 +10,15 @@ import { message as noty } from 'antd';
 
 const productionWsHost = window.location.origin.replace(/^http/, 'ws');
 const host = process.env.NODE_ENV === 'production' ? productionWsHost : 'ws://localhost:5000';
+const maybeUserId = getOrCreateUserId();
+
+export type Mode =
+  | { type: 'initializing' }
+  | { type: 'private' }
+  | { type: 'host' }
+  | { type: 'client' }
+  | { type: 'disconnected' }
+  | { type: 'error', text: string };
 
 export default function useWebsocket({
   userShareableState,
@@ -18,43 +27,53 @@ export default function useWebsocket({
   userShareableState: UserShareableState,
   dispatchUserShareableState: Dispatch<UserShareableStateAction>
 }) {
-  const clientRef = useRef<WebSocket | null>(null);
-  const [isHost, setIsHost] = useState(false);
   const location = useLocation();
   const uriWithoutLeadingSlash = location.pathname?.slice(1);
+  const clientRef = useRef<WebSocket | null>(null);
+  const [mode, setMode] = useState<Mode>({ type: 'initializing' });
+
+
+  const reconnect = useCallback(() => {
+    const maybeRoomId = RoomIdCodec.decode(uriWithoutLeadingSlash);
+    if (isLeft(maybeUserId) || isLeft(maybeRoomId)) return;
+
+    clientRef.current?.send(MessageCodec.encode({
+      eventType: 'connect', 
+      roomId:maybeRoomId.right,
+      userId: maybeUserId.right,
+      state: {
+        challengeIndex: userShareableState.challengeIndex,
+        isUnique: userShareableState.isUnique,
+        count: userShareableState.count,
+        weapons: userShareableState.weapons,
+      },
+    }));
+  }, [userShareableState, uriWithoutLeadingSlash]);
 
   useEffectOnce(() => {
     if (!uriWithoutLeadingSlash) {
-      setIsHost(true);
+      setMode({ type: 'private' });
       return;
     }
 
-    const maybeUserId = UserIdCodec.decode(getOrCreateUserId());
     if (isLeft(maybeUserId)) {
+      const errorText = PathReporter.report(maybeUserId).join('\n');
+      noty.error(errorText);
+      setMode({ type: 'error', text: errorText });
       return;
     };
 
     const maybeRoomId = RoomIdCodec.decode(uriWithoutLeadingSlash);
     if (isLeft(maybeRoomId)) {
-      noty.error(PathReporter.report(maybeRoomId));
+      const errorText = PathReporter.report(maybeRoomId).join('\n');
+      noty.error(errorText);
+      setMode({ type: 'error', text: errorText });
       return;
     }
 
     clientRef.current = new WebSocket(host);
 
-    clientRef.current!.onopen = () => {
-      clientRef.current!.send(MessageCodec.encode({
-        eventType: 'connect', 
-        roomId: maybeRoomId.right,
-        userId: maybeUserId.right,
-        state: {
-          challengeIndex: userShareableState.challengeIndex,
-          isUnique: userShareableState.isUnique,
-          count: userShareableState.count,
-          weapons: userShareableState.weapons,
-        },
-      }));
-    };
+    clientRef.current!.onopen = () => reconnect();
 
     clientRef.current!.onmessage = ({ data }) => {
       const maybeMessage = MessageCodec.decode(data);
@@ -68,7 +87,8 @@ export default function useWebsocket({
 
       switch (message.eventType) {
         case 'connected': {
-          setIsHost(message.isHost);
+          noty.success(message.eventType);
+          setMode({ type: message.isHost ? 'host' : 'client' });
 
           if (!message.isHost) {
             dispatchUserShareableState({ type: 'replaceState', nextState: message.state });
@@ -77,19 +97,21 @@ export default function useWebsocket({
         }
 
         case 'update': {
-          if (!isHost) {
+          if (mode.type === 'client') {
             dispatchUserShareableState({ type: 'replaceState', nextState: message.state });
           }
           return;
         }
 
         case 'disconnect': {
-          console.log(message);
+          noty.info(message.eventType);
+          setMode({ type: 'disconnected' });
           return;
         }
         
         case 'error': {
           noty.error(message.message);
+          setMode({ type: 'error', text: message.message });
           return;
         }
 
@@ -101,8 +123,10 @@ export default function useWebsocket({
   });
   
 
+  const serializedState = JSON.stringify(userShareableState);
+  const previousSerializedState = usePrevious(serializedState);
   useEffect(() => {
-    if (!isHost || !uriWithoutLeadingSlash) return;
+    if (mode.type !== 'host' || !uriWithoutLeadingSlash || serializedState === previousSerializedState) return;
 
     const maybeRoomId = RoomIdCodec.decode(uriWithoutLeadingSlash);
 
@@ -116,7 +140,16 @@ export default function useWebsocket({
       roomId: maybeRoomId.right,
       state: userShareableState,
     }));
-  }, [userShareableState, uriWithoutLeadingSlash, isHost]);
+  }, [
+    userShareableState,
+    serializedState,
+    previousSerializedState,
+    uriWithoutLeadingSlash,
+    mode.type,
+  ]);
 
-  return { isHost };
+  return {
+    mode,
+    reconnect,
+  };
 }

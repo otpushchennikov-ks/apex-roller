@@ -43,8 +43,15 @@ export class Rooms {
 
   private rooms: Map<RoomId, Room>
   private userConnections: Map<UserId, Map<RoomId, WebSocket>>
-
-  constructor(maxRooms: Number, maxUsers: Number, maxRoomsPerUser: Number) {
+  constructor({
+    maxRooms,
+    maxUsers,
+    maxRoomsPerUser,
+  }: {
+    maxRooms: Number
+    maxUsers: Number
+    maxRoomsPerUser: Number
+  }) {
     this.maxRooms = maxRooms;
     this.maxUsers = maxUsers;
     this.maxRoomsPerUser = maxRoomsPerUser;
@@ -69,7 +76,7 @@ export class Rooms {
 
     const userRooms = this.userConnections.get(userId);
     if (userRooms) {
-      if (userRooms.size >= this.maxRoomsPerUser) {
+      if (userRooms.size >= this.maxRoomsPerUser && !userRooms.has(roomId)) {
         return left(`cannot enter room: max user rooms (${this.maxRoomsPerUser}) reached`);
       }
     } else {

@@ -1,4 +1,5 @@
 import { v4 as uuid } from 'uuid';
+import { UserIdCodec } from '@apex-roller/shared';
 
 
 const getOrCreateUserId = () => {
@@ -6,7 +7,7 @@ const getOrCreateUserId = () => {
     localStorage.setItem('userId', uuid());
   }
 
-  return localStorage.getItem('userId')!;
+  return UserIdCodec.decode(localStorage.getItem('userId')!);
 };
 
 export default getOrCreateUserId;
