@@ -32,6 +32,10 @@ export default function useWebsocket({
   const clientRef = useRef<WebSocket | null>(null);
   const [mode, setMode] = useState<Mode>({ type: 'initializing' });
 
+  // TODO: FIX IT!!!
+  const modeRef = useRef<Mode>(mode);
+  useEffect(() => void (modeRef.current = mode), [mode]);
+
 
   const reconnect = useCallback(() => {
     const maybeRoomId = RoomIdCodec.decode(uriWithoutLeadingSlash);
@@ -74,7 +78,6 @@ export default function useWebsocket({
     clientRef.current = new WebSocket(host);
 
     clientRef.current!.onopen = () => reconnect();
-
     clientRef.current!.onmessage = ({ data }) => {
       const maybeMessage = MessageCodec.decode(data);
 
@@ -97,7 +100,7 @@ export default function useWebsocket({
         }
 
         case 'update': {
-          if (mode.type === 'client') {
+          if (modeRef.current.type === 'client') {
             dispatchUserShareableState({ type: 'replaceState', nextState: message.state });
           }
           return;
