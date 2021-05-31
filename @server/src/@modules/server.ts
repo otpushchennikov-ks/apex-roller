@@ -6,20 +6,51 @@ import { ConnectMessage, UpdateMessage, Message, MessageCodec, UserId, RoomId } 
 
 export type ConnectionContext = {
   isAlive: boolean,
+  lastPong: number,
   userId?: UserId,
   roomId?: RoomId,
 }
 
 export function RollerWebSocketServer(
   server: Server,
+  options: {
+    heartbeatTimeout: number,
+    reconnectTimeout: number,
+  },
   handlers: {
     onConnect: (message: ConnectMessage, context: ConnectionContext, connection: WebSocket) => (Message | undefined),
     onUpdate: (message: UpdateMessage, context: ConnectionContext, connection: WebSocket) => (Message | undefined),
-    onClose: (context: ConnectionContext) => void
-  }
+    onDisconnect: (context: ConnectionContext) => void,
+  }, 
 ): Server {
+  const potentialReconnects = new Map();
+
   server.on('connection', (connection, request) => {
-    const context: ConnectionContext = { isAlive: true };
+    const context: ConnectionContext = { isAlive: true, lastPong: Date.now() };
+    
+    const disconnect = () => {
+      console.log(`closing connection to ${request.socket.remoteAddress}`);
+      if (heartbeat) {
+        clearInterval(heartbeat);
+      }
+      context.isAlive = false;
+      const userId = context.userId; 
+      if (userId) {
+        const timeoutHandle = setTimeout(() => {
+          potentialReconnects.delete(userId);
+          handlers.onDisconnect(context);
+        }, options.reconnectTimeout);
+        potentialReconnects.set(userId, timeoutHandle);
+      }
+    };
+
+    const heartbeat = setInterval(() => {
+      if ((Date.now() - context.lastPong) > options.heartbeatTimeout) {
+        disconnect();
+      } else {
+        connection.ping();
+      }
+    }, 20000);
   
     connection.on('message', data => {
       const maybeMessage = MessageCodec.decode(data.toString())
@@ -33,6 +64,11 @@ export function RollerWebSocketServer(
       let response : Message | undefined;
       switch (message.eventType) {
         case 'connect': {
+          const reconnectTimeoutHandle = potentialReconnects.get(message.userId);
+          if (reconnectTimeoutHandle) {
+            clearTimeout(reconnectTimeoutHandle);
+            console.log(`user ${message.userId} is reconnecting`);
+          }
           response = handlers.onConnect(message, context, connection);
           break;
         }
@@ -50,13 +86,9 @@ export function RollerWebSocketServer(
         console.log(`${request.socket.remoteAddress} <- ${serializedResponse}`)
       }
     });
-  
-    setInterval(() => connection.ping(), 20000);
-    connection.on('pong', () => context.isAlive = true);
-    connection.on('close', () => {
-      context.isAlive = false;
-      handlers.onClose(context);
-    });
+
+    connection.on('pong', () => context.lastPong = Date.now());
+    connection.on('close', disconnect);
   });
 
   return server;
