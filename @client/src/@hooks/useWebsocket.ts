@@ -1,8 +1,8 @@
-import { UserShareableState, MessageCodec, RoomIdCodec } from '@apex-roller/shared';
+import { UserShareableState as ShareableState, MessageCodec, RoomIdCodec } from '@apex-roller/shared';
 import { useEffectOnce, useLocation, usePrevious } from 'react-use';
 import { useState, Dispatch, useRef, useEffect, useCallback } from 'react';
 import getOrCreateUserId from '@utils/getOrCreateUserId';
-import { UserShareableStateAction } from './useUserShareableStateReducer';
+import { ShareableStateAction } from './useShareableStateReducer';
 import { isLeft } from 'fp-ts/lib/Either';
 import { PathReporter } from 'io-ts/lib/PathReporter';
 import { message as noty } from 'antd';
@@ -21,11 +21,11 @@ export type Mode =
   | { type: 'error', text: string };
 
 export default function useWebsocket({
-  userShareableState,
-  dispatchUserShareableState,
+  shareableState,
+  dispatchShareableState,
 }: {
-  userShareableState: UserShareableState,
-  dispatchUserShareableState: Dispatch<UserShareableStateAction>
+  shareableState: ShareableState,
+  dispatchShareableState: Dispatch<ShareableStateAction>
 }) {
   const location = useLocation();
   const uri = location.pathname?.slice(1);
@@ -41,15 +41,15 @@ export default function useWebsocket({
       roomId:maybeRoomId.right,
       userId: maybeUserId.right,
       state: {
-        challengeIndex: userShareableState.challengeIndex,
-        isUnique: userShareableState.isUnique,
-        count: userShareableState.count,
-        weapons: userShareableState.weapons,
+        challengeIndex: shareableState.challengeIndex,
+        isUnique: shareableState.isUnique,
+        count: shareableState.count,
+        weapons: shareableState.weapons,
       },
     }));
-  }, [userShareableState, uri]);
+  }, [shareableState, uri]);
 
-  const init = useCallback(() => {
+  const init = useCallback((): Promise<WebSocket> => new Promise(resolve => {
     ws.current = new WebSocket(host);
     ws.current.onopen = () => reconnect();
     ws.current.onmessage = ({ data }) => {
@@ -64,17 +64,18 @@ export default function useWebsocket({
 
       switch (message.eventType) {
         case 'connected': {
+          resolve(ws.current!);
           noty.success(message.eventType);
           setMode({ type: message.isHost ? 'host' : 'client' });
 
           if (!message.isHost) {
-            dispatchUserShareableState({ type: 'replaceState', nextState: message.state });
+            dispatchShareableState({ type: 'replaceState', nextState: message.state });
           }
           return;
         }
 
         case 'update': {
-          dispatchUserShareableState({ type: 'replaceState', nextState: message.state });
+          dispatchShareableState({ type: 'replaceState', nextState: message.state });
           return;
         }
 
@@ -95,8 +96,7 @@ export default function useWebsocket({
         }
       }
     };
-
-  }, [dispatchUserShareableState, reconnect]);
+  }), [dispatchShareableState, reconnect]);
 
   useEffectOnce(() => {
     if (!uri) {
@@ -139,11 +139,8 @@ export default function useWebsocket({
     }
   }, [previousUri, uri, init]);
 
-  // TODO: кажется эту проверку теперь можно удалить
-  // const serializedState = JSON.stringify(userShareableState);
-  // const previousSerializedState = usePrevious(serializedState);
   useEffect(() => {
-    if (mode.type !== 'host' || !uri /* || serializedState === previousSerializedState */) return;
+    if (mode.type !== 'host' || !uri) return;
 
     const maybeRoomId = RoomIdCodec.decode(uri);
 
@@ -152,15 +149,15 @@ export default function useWebsocket({
       return;
     }
 
-    ws.current?.send(MessageCodec.encode({
-      eventType: 'update',
-      roomId: maybeRoomId.right,
-      state: userShareableState,
-    }));
+    if (ws.current && ws.current.readyState === ws.current.OPEN) {
+      ws.current.send(MessageCodec.encode({
+        eventType: 'update',
+        roomId: maybeRoomId.right,
+        state: shareableState,
+      }));
+    }
   }, [
-    userShareableState,
-    // serializedState,
-    // previousSerializedState,
+    shareableState,
     uri,
     mode.type,
   ]);

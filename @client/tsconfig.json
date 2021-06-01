@@ -20,7 +20,8 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "noImplicitAny": true,
-    "baseUrl": "src"
+    "baseUrl": "src",
+    "types": ["@emotion/react/types/css-prop"]
   },
   "include": [
     "src"
