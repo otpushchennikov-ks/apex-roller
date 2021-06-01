@@ -6,38 +6,43 @@ import { RootStyled } from '@styled';
 import useShareableStateReducer from '@hooks/useShareableStateReducer';
 import useWebsocket from '@hooks/useWebsocket';
 import { BrowserRouter } from 'react-router-dom';
-import SettingsPrivate from '@components/SettingsPrivate';
+import Settings from '@components/Settings';
 import Challenges from '@components/Challenges';
 import { useRef } from 'react';
-import { SettingsPrivateImperativeAPI } from '@components/SettingsPrivate/types';
+import { useSettingsState } from '@components/Settings';
+import { SettingsImperativeAPI } from '@components/Settings/types';
 
 
 message.config({ maxCount: 3 });
 
 function App() {
-  const SettingsPrivateImperativeAPIRef = useRef<SettingsPrivateImperativeAPI | null>(null);
+  const SettingsImperativeAPIRef = useRef<SettingsImperativeAPI | null>(null)
+  const [settings, setSettings] = useSettingsState();
 
   const {
     shareableState,
     dispatchShareableState,
   } = useShareableStateReducer();
-
+  
   const { mode, reconnect } = useWebsocket({
     shareableState,
     dispatchShareableState,
+    settings,
   });
 
   return (
     <RootStyled>
       <div className="content">
         <Search />
-        <SettingsPrivate
+        <Settings
+          state={settings}
+          setState={setSettings}
           mode={mode}
-          ref={SettingsPrivateImperativeAPIRef}
+          ref={SettingsImperativeAPIRef}
         />
         <Challenges
           mode={mode}
-          runMissclickguard={SettingsPrivateImperativeAPIRef.current?.runGuard ?? (fn => fn())}
+          runMissclickguard={SettingsImperativeAPIRef.current?.runGuard ?? (fn => fn())}
           reconnectWebsocket={reconnect}
           shareableState={shareableState}
           dispatchShareableState={dispatchShareableState}
@@ -46,6 +51,8 @@ function App() {
     </RootStyled>
   );
 }
+
+
 
 render(
   <BrowserRouter>

@@ -41,14 +41,14 @@ const Challenges: FC<ChallengesProps> = ({
         <>
           <ColumnStyled
             css={highlitedMixin}
-            style={{ marginBottom: margin }}
+            style={{ marginBottom: margin, alignItems: 'center' }}
           >
             <Skeleton.Input active={true} style={{ width: 400, marginBottom: 10 }}/>
             <Skeleton.Input active={true} style={{ width: 400, marginBottom: 10 }}/>
             <Skeleton.Input active={true} style={{ width: 200, marginBottom: 10 }}/>
             <Skeleton.Button active={true} style={{ width: 120 }} />
           </ColumnStyled>
-          <div>
+          <div css={highlitedMixin}>
             <RowStyled style={{ marginBottom: 10 }}>
               <Skeleton.Avatar active={true} style={{ marginRight: 10 }}/>
               <Skeleton.Input active={true} style={{ width: 400 }}/>

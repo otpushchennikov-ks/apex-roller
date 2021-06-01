@@ -6,6 +6,8 @@ import { ShareableStateAction } from './useShareableStateReducer';
 import { isLeft } from 'fp-ts/lib/Either';
 import { PathReporter } from 'io-ts/lib/PathReporter';
 import { message as noty } from 'antd';
+import { SettingsState } from '@components/Settings/types';
+import { playAudio } from '@utils/audio';
 
 
 const productionWsHost = window.location.origin.replace(/^http/, 'ws');
@@ -23,14 +25,23 @@ export type Mode =
 export default function useWebsocket({
   shareableState,
   dispatchShareableState,
+  settings,
 }: {
   shareableState: ShareableState,
   dispatchShareableState: Dispatch<ShareableStateAction>
+  settings: SettingsState
 }) {
   const location = useLocation();
   const uri = location.pathname?.slice(1);
   const ws = useRef<WebSocket | null>(null);
   const [mode, setMode] = useState<Mode>({ type: 'initializing' });
+
+  const latestSettings = useRef(settings);
+  const latestMode = useRef(mode);
+  useEffect(() => {
+    latestSettings.current = settings;
+    latestMode.current = mode;
+  });
 
   const reconnect = useCallback(() => {
     const maybeRoomId = RoomIdCodec.decode(uri);
@@ -75,7 +86,9 @@ export default function useWebsocket({
         }
 
         case 'update': {
+          console.log('update incoming');
           dispatchShareableState({ type: 'replaceState', nextState: message.state });
+          playAudio(latestSettings.current.notificationKey);
           return;
         }
 
@@ -140,7 +153,7 @@ export default function useWebsocket({
   }, [previousUri, uri, init]);
 
   useEffect(() => {
-    if (mode.type !== 'host' || !uri) return;
+    if (latestMode.current.type !== 'host' || !uri) return;
 
     const maybeRoomId = RoomIdCodec.decode(uri);
 
@@ -156,11 +169,7 @@ export default function useWebsocket({
         state: shareableState,
       }));
     }
-  }, [
-    shareableState,
-    uri,
-    mode.type,
-  ]);
+  }, [shareableState, uri]);
 
   return {
     mode,

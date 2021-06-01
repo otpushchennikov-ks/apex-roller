@@ -1,6 +1,7 @@
 import { ChallengeFactory, Challenge, Weapon } from '@apex-roller/shared';
-import weapons from '@modules/weapons';
+import weapons from './weapons';
 import generateRandomIndex from '@utils/generateRandomIndex';
+
 
 const makeChallenge: ChallengeFactory = (name, poolFactory) => {
   return {
