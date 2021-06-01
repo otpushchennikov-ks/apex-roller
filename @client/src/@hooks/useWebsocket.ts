@@ -28,20 +28,15 @@ export default function useWebsocket({
   dispatchUserShareableState: Dispatch<UserShareableStateAction>
 }) {
   const location = useLocation();
-  const uriWithoutLeadingSlash = location.pathname?.slice(1);
-  const clientRef = useRef<WebSocket | null>(null);
+  const uri = location.pathname?.slice(1);
+  const ws = useRef<WebSocket | null>(null);
   const [mode, setMode] = useState<Mode>({ type: 'initializing' });
 
-  // TODO: FIX IT!!!
-  const modeRef = useRef<Mode>(mode);
-  useEffect(() => void (modeRef.current = mode), [mode]);
-
-
   const reconnect = useCallback(() => {
-    const maybeRoomId = RoomIdCodec.decode(uriWithoutLeadingSlash);
+    const maybeRoomId = RoomIdCodec.decode(uri);
     if (isLeft(maybeUserId) || isLeft(maybeRoomId)) return;
 
-    clientRef.current?.send(MessageCodec.encode({
+    ws.current?.send(MessageCodec.encode({
       eventType: 'connect', 
       roomId:maybeRoomId.right,
       userId: maybeUserId.right,
@@ -52,33 +47,12 @@ export default function useWebsocket({
         weapons: userShareableState.weapons,
       },
     }));
-  }, [userShareableState, uriWithoutLeadingSlash]);
+  }, [userShareableState, uri]);
 
-  useEffectOnce(() => {
-    if (!uriWithoutLeadingSlash) {
-      setMode({ type: 'private' });
-      return;
-    }
-
-    if (isLeft(maybeUserId)) {
-      const errorText = PathReporter.report(maybeUserId).join('\n');
-      noty.error(errorText);
-      setMode({ type: 'error', text: errorText });
-      return;
-    };
-
-    const maybeRoomId = RoomIdCodec.decode(uriWithoutLeadingSlash);
-    if (isLeft(maybeRoomId)) {
-      const errorText = PathReporter.report(maybeRoomId).join('\n');
-      noty.error(errorText);
-      setMode({ type: 'error', text: errorText });
-      return;
-    }
-
-    clientRef.current = new WebSocket(host);
-
-    clientRef.current!.onopen = () => reconnect();
-    clientRef.current!.onmessage = ({ data }) => {
+  const init = useCallback(() => {
+    ws.current = new WebSocket(host);
+    ws.current.onopen = () => reconnect();
+    ws.current.onmessage = ({ data }) => {
       const maybeMessage = MessageCodec.decode(data);
 
       if (isLeft(maybeMessage)) {
@@ -100,9 +74,7 @@ export default function useWebsocket({
         }
 
         case 'update': {
-          if (modeRef.current.type === 'client') {
-            dispatchUserShareableState({ type: 'replaceState', nextState: message.state });
-          }
+          dispatchUserShareableState({ type: 'replaceState', nextState: message.state });
           return;
         }
 
@@ -123,31 +95,73 @@ export default function useWebsocket({
         }
       }
     };
+
+  }, [dispatchUserShareableState, reconnect]);
+
+  useEffectOnce(() => {
+    if (!uri) {
+      setMode({ type: 'private' });
+      noty.info('private room');
+      return;
+    }
+
+    if (isLeft(maybeUserId)) {
+      const errorText = PathReporter.report(maybeUserId).join('\n');
+      noty.error(errorText);
+      setMode({ type: 'error', text: errorText });
+      return;
+    };
+
+    const maybeRoomId = RoomIdCodec.decode(uri);
+    if (isLeft(maybeRoomId)) {
+      const errorText = PathReporter.report(maybeRoomId).join('\n');
+      noty.error(errorText);
+      setMode({ type: 'error', text: errorText });
+      return;
+    }
+
+    init();
   });
   
-
-  const serializedState = JSON.stringify(userShareableState);
-  const previousSerializedState = usePrevious(serializedState);
+  const previousUri = usePrevious(uri);
   useEffect(() => {
-    if (mode.type !== 'host' || !uriWithoutLeadingSlash || serializedState === previousSerializedState) return;
+    if (!uri && ws.current) {
+      noty.info('private room');
+      ws.current.close();
+      ws.current = null;
+      return;
+    }
 
-    const maybeRoomId = RoomIdCodec.decode(uriWithoutLeadingSlash);
+    if (uri !== previousUri && previousUri !== undefined) {
+      ws.current?.close();
+      ws.current = null;
+      init();
+    }
+  }, [previousUri, uri, init]);
+
+  // TODO: кажется эту проверку теперь можно удалить
+  // const serializedState = JSON.stringify(userShareableState);
+  // const previousSerializedState = usePrevious(serializedState);
+  useEffect(() => {
+    if (mode.type !== 'host' || !uri /* || serializedState === previousSerializedState */) return;
+
+    const maybeRoomId = RoomIdCodec.decode(uri);
 
     if (isLeft(maybeRoomId)) {
       noty.error(PathReporter.report(maybeRoomId));
       return;
     }
 
-    clientRef.current?.send(MessageCodec.encode({
+    ws.current?.send(MessageCodec.encode({
       eventType: 'update',
       roomId: maybeRoomId.right,
       state: userShareableState,
     }));
   }, [
     userShareableState,
-    serializedState,
-    previousSerializedState,
-    uriWithoutLeadingSlash,
+    // serializedState,
+    // previousSerializedState,
+    uri,
     mode.type,
   ]);
 
