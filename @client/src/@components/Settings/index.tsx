@@ -69,7 +69,10 @@ const Settings = forwardRef<SettingsImperativeAPI, SettingsProps>(({ mode, state
             );
           })}
         </Select>
-        <Button onClick={() => playAudio(state.notificationKey)}>
+        <Button
+          disabled={state.notificationIsEnabled}
+          onClick={() => playAudio(state.notificationKey)}
+        >
           <PlayCircleOutlined />
         </Button>
       </RowStyled>
@@ -129,16 +132,15 @@ const Settings = forwardRef<SettingsImperativeAPI, SettingsProps>(({ mode, state
         >
           Background image
         </Checkbox>
-        {state.backgroundImageIsEnabled &&
-          <Button
-            onClick={() => setState(state => ({
-              ...state,
-              backgroundSrc: generateRandomBackgroundSrc(state.backgroundSrc ?? undefined),
-            }))}
-          >
-            <RedoOutlined />
-          </Button>
-        }
+        <Button
+          disabled={!state.backgroundImageIsEnabled}
+          onClick={() => setState(state => ({
+            ...state,
+            backgroundSrc: generateRandomBackgroundSrc(state.backgroundSrc ?? undefined),
+          }))}
+        >
+          <RedoOutlined />
+        </Button>
       </div>
       <Global styles={css`
         ${RootStyled} {
