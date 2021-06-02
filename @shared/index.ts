@@ -7,7 +7,6 @@ const AmmoTypeCodec = T.union([
   T.literal('Shotgun'),
   T.literal('Sniper'),
   T.literal('Arrows'),
-  T.literal('Relic'),
 ])
 export type AmmoType = T.TypeOf<typeof AmmoTypeCodec>
 

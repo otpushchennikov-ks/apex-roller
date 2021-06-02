@@ -11,7 +11,7 @@ const RootStyled = styled.div`
   align-items: center;
 
   .content {
-    width: ${mainBoxWidth};
+    width: ${mainBoxWidth}px;
   }
 `;
 

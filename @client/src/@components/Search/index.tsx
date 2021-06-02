@@ -1,4 +1,4 @@
-import { useState, FC } from 'react';
+import { useState, FC, useRef, useEffect } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Button, Input } from 'antd';
 import { HomeOutlined, EnterOutlined } from '@ant-design/icons';
@@ -8,8 +8,13 @@ import { margin } from '@styled/constants';
 
 
 const Search: FC = () => {
+  const inputRef = useRef<Input>(null);
   const history = useHistory();
   const [roomIdInput, setRoomIdInput] = useState('');
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   return (
     <RowStyled style={{ marginBottom: margin }} css={highlitedMixin}>
@@ -22,6 +27,7 @@ const Search: FC = () => {
         <HomeOutlined />
       </Button>
       <Input
+        ref={inputRef}
         placeholder="Enter room id"
         allowClear={true}
         value={roomIdInput}

@@ -1,31 +1,44 @@
 import challengesData from '@modules/challenges';
 import { FC } from 'react';
 import { Skeleton, Empty, Button, Typography, Select, InputNumber, Checkbox, List } from 'antd';
-import { InfoOutlined, WarningOutlined } from '@ant-design/icons';
+import { InfoOutlined, UndoOutlined, WarningOutlined } from '@ant-design/icons';
 import { ChallengesProps } from './types';
 import { AmmoType } from '@apex-roller/shared';
-import LightAmmoImage from '@images/light-ammo.png';
-import HeavyAmmoImage from '@images/heavy-ammo.png';
-import EnergyAmmoImage from '@images/energy-ammo.png';
-import ShotgunAmmoImage from '@images/shotgun-ammo.png';
-import SniperAmmoImage from '@images/sniper-ammo.png';
-import ArrowsAmmoImage from '@images/arrows-ammo.png';
-import RelicAmmoImage from '@images/relic-ammo.png';
+import { ReactComponent as ArrowsAmmo } from '@images/arrows-ammo.svg';
+import { ReactComponent as EnergyAmmo } from '@images/energy-ammo.svg';
+import { ReactComponent as HeavyAmmo } from '@images/heavy-ammo.svg';
+import { ReactComponent as LightAmmo } from '@images/light-ammo.svg';
+import { ReactComponent as ShotgunAmmo } from '@images/shotgun-ammo.svg';
+import { ReactComponent as SniperAmmo } from '@images/sniper-ammo.svg';
+import { ReactComponent as RelicEnergyAmmo } from '@images/relic-energy-ammo.svg';
+import { ReactComponent as RelicHeavyAmmo } from '@images/relic-heavy-ammo.svg';
+import { ReactComponent as RelicLightAmmo } from '@images/relic-light-ammo.svg';
+import { ReactComponent as RelicShotgunAmmo } from '@images/relic-shotgun-ammo.svg';
+import { ReactComponent as RelicSniperAmmo } from '@images/relic-sniper-ammo.svg';
 import ColumnStyled from '@styled/ColumnStyled';
 import { RowStyled, highlitedMixin } from '@styled';
-import { margin, lightYellowColor, inputWidth, gap } from '@styled/constants';
+import { margin, lightYellowColor, gap } from '@styled/constants';
+import generateRandomIndex from '@utils/generateRandomIndex';
 
 
 const { Text } = Typography;
 
-const ammoTypeImagesMap: Record<AmmoType, string> = {
-  Light: LightAmmoImage,
-  Heavy: HeavyAmmoImage,
-  Energy: EnergyAmmoImage,
-  Shotgun: ShotgunAmmoImage,
-  Sniper: SniperAmmoImage,
-  Arrows: ArrowsAmmoImage,
-  Relic: RelicAmmoImage,
+const relicAmmoTypeImagesMap: Record<AmmoType, typeof ArrowsAmmo> = {
+  Light: RelicLightAmmo,
+  Heavy: RelicHeavyAmmo,
+  Energy: RelicEnergyAmmo,
+  Shotgun: RelicShotgunAmmo,
+  Sniper: RelicSniperAmmo,
+  Arrows: ArrowsAmmo, // такого релика нет
+};
+
+const ammoTypeImagesMap: Record<AmmoType, typeof ArrowsAmmo> = {
+  Light: LightAmmo,
+  Heavy: HeavyAmmo,
+  Energy: EnergyAmmo,
+  Shotgun: ShotgunAmmo,
+  Sniper: SniperAmmo,
+  Arrows: ArrowsAmmo,
 };
 
 const Challenges: FC<ChallengesProps> = ({
@@ -95,27 +108,36 @@ const Challenges: FC<ChallengesProps> = ({
       return (
         <>
           <div css={highlitedMixin}>
-            <RowStyled style={{ margin: `0 auto ${gap}px` }}>
-              <Text strong={true} style={{ marginRight: margin }}>
+            <RowStyled leadItemWidth={105} style={{ margin: `0 auto ${gap}px` }}>
+              <Text strong={true} style={{ marginRight: gap }}>
                 Challenge
               </Text>
-              <Select
-                value={shareableState.challengeIndex}
-                onChange={value => dispatchShareableState({ type: 'changeIndex', nextIndex: value })}
-                style={{ width: inputWidth }}
-                size="large"
-                disabled={mode.type === 'client'}
-              >
-                {challengesData.map(({ name }, i) => {
-                  return (
-                    <Select.Option key={i} value={i}>
-                      {name}
-                    </Select.Option>
-                  );
-                })}
-              </Select>
+              <RowStyled style={{ flexGrow: 2 }}>
+                <Select
+                  value={shareableState.challengeIndex}
+                  onChange={value => dispatchShareableState({ type: 'changeIndex', nextIndex: value })}
+                  style={{ marginRight: gap, flexGrow: 2 }}
+                  disabled={mode.type === 'client'}
+                >
+                  {challengesData.map(({ name }, i) => {
+                    return (
+                      <Select.Option key={i} value={i}>
+                        {name}
+                      </Select.Option>
+                    );
+                  })}
+                </Select>
+                <Button
+                  onClick={() => dispatchShareableState({
+                    type: 'changeIndex',
+                    nextIndex: generateRandomIndex(challengesData.length),
+                  })}
+                >
+                  <UndoOutlined />
+                </Button>
+              </RowStyled>
             </RowStyled>
-            <RowStyled style={{ margin: `0 auto ${gap}px` }}>
+            <RowStyled leadItemWidth={105} style={{ margin: `0 auto ${gap}px` }}>
               <Text strong={true} style={{ marginRight: 10 }}>
                 Weapons count
               </Text>
@@ -124,19 +146,20 @@ const Challenges: FC<ChallengesProps> = ({
                 max={5}
                 value={shareableState.count}
                 onChange={value => dispatchShareableState({ type: 'changeCount', nextCount: value })}
-                style={{ width: inputWidth }}
-                size="large"
+                style={{ flexGrow: 2 }}
                 disabled={mode.type === 'client'}
               />
             </RowStyled>
-            <Checkbox
-              checked={shareableState.isUnique}
-              onChange={({ target: { checked }}) => dispatchShareableState({ type: 'changeIsUnique', nextIsUnique: checked })}
-              style={{ width: 121, display: 'flex', margin: `0 auto ${['host', 'private'].includes(mode.type) ? `${gap}px` : 0}` }}
-              disabled={mode.type === 'client'}
-            >
-              <Text strong={true}>Is unique</Text>
-            </Checkbox>
+            <div style={{ textAlign: 'center', margin: `0 auto ${['host', 'private'].includes(mode.type) ? `${gap}px` : 0}` }}>
+              <Checkbox
+                checked={shareableState.isUnique}
+                onChange={({ target: { checked }}) => dispatchShareableState({ type: 'changeIsUnique', nextIsUnique: checked })}
+                style={{ display: 'inline-flex' }}
+                disabled={mode.type === 'client'}
+              >
+                <Text strong={true}>Is unique</Text>
+              </Checkbox>
+            </div>
             {['host', 'private'].includes(mode.type) &&
               <Button
                 style={{ display: 'block', margin: '0 auto' }}
@@ -155,22 +178,22 @@ const Challenges: FC<ChallengesProps> = ({
             style={{ marginTop: margin }}
           >
             <List>
-              {shareableState.weapons.map(({ name, ammoType }, i) => {
+              {shareableState.weapons.map(({ name, ammoType, isAirdrop }, i) => {
+                const Ammo = (isAirdrop ? relicAmmoTypeImagesMap : ammoTypeImagesMap)[ammoType];
+
                 return (
                   <List.Item
                     key={name + i}
                     style={{ fontSize: 32 }}
                   >
-                    <RowStyled>
-                      <Text strong={true} style={{ marginRight: 10 }}>
-                        {i + 1}.
-                      </Text>
-                      <Text strong={true}>{name}</Text>
-                      <img
-                        style={{ display: 'block', marginLeft: 10, width: 42 }}
-                        src={ammoTypeImagesMap[ammoType]}
-                        alt=""
-                      />
+                    <RowStyled style={{ width: '100%' }}>
+                      <div>
+                        <Text strong={true} style={{ marginRight: 10 }}>
+                          {i + 1}.
+                        </Text>
+                        <Text strong={true}>{name}</Text>
+                      </div>
+                      <Ammo style={{ marginLeft: 10, width: 42, height: 42 }} />
                     </RowStyled>
                   </List.Item>
                 );

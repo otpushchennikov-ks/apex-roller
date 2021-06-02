@@ -5,11 +5,11 @@ import { StartOverlayProps } from './types';
 
 
 const StartOverlay: FC<StartOverlayProps> = ({ render }) => {
-  const buttonRef = useRef<HTMLButtonElement>(null!);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const [isInit, setIsInit] = useState(false);
 
   useEffect(() => {
-    buttonRef.current.focus();
+    buttonRef.current?.focus();
   }, []);
 
   return (
@@ -20,7 +20,7 @@ const StartOverlay: FC<StartOverlayProps> = ({ render }) => {
             ref={buttonRef}
             style={{ margin: 'auto', transform: 'scale(3)' }}
             onClick={() => setIsInit(true)}
-            onBlur={() => buttonRef.current.focus()}
+            onBlur={() => buttonRef.current?.focus()}
           >
             Lets go!
           </Button>

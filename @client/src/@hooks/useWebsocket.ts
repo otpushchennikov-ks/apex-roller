@@ -22,6 +22,9 @@ export type Mode =
   | { type: 'disconnected' }
   | { type: 'error', text: string };
 
+// TODO: переписать этот модуль так, чтобы любой компонент мог подписываться
+// на эвенты и добавлять свои хендлеры на соответствующие эвенты
+// возможно стоит отказаться от хука. Переписать на очереди?
 export default function useWebsocket({
   shareableState,
   dispatchShareableState,
