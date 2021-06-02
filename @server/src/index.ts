@@ -12,10 +12,11 @@ const PORT = process.env.PORT || 5000;
 const clientBuildPath = path.join(__dirname, '..', '..', '@client', 'build');
 const httpServer = express()
   .use(express.static(clientBuildPath))
+  .get('/api/topRooms', (_, res) => res.json({topRooms: rooms.recentlyUpdatedRooms.map(room => room.id)}))
   .get('/*', (_, res) => res.sendFile(path.join(clientBuildPath, 'index.html')))
   .listen(PORT, () => console.log(`Server is running in port: ${PORT}`));
 
-const rooms = new Rooms({ maxRooms: 50, maxUsers: 50, maxRoomsPerUser: 3 });
+const rooms = new Rooms({ maxRooms: 50, maxUsers: 50, maxRoomsPerUser: 3, nRecentlyUpdatedRoomsToKeep: 5 });
 
 RollerWebSocketServer(
   new WebSocketServer({ server: httpServer }),

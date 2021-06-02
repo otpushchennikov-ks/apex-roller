@@ -5,10 +5,11 @@ import { UserShareableState, RoomId, UserId, MessageCodec } from '@apex-roller/s
 
 
 export class Room {
-  id: RoomId
-  state: UserShareableState
+  readonly id: RoomId
+  readonly userIds: Set<UserId>
+
   hostId: UserId
-  userIds: Set<UserId>
+  state: UserShareableState
 
   constructor(id: RoomId, host: UserId, state: UserShareableState) {
     this.id = id;
@@ -34,29 +35,59 @@ export class Room {
     }
     return { isEmpty: false }
   }
+
+  updateState(state: UserShareableState) {
+    this.state = state;
+  }
+
 }
 
 export class Rooms {
-  maxRooms: Number
-  maxUsers: Number
-  maxRoomsPerUser: Number
+  maxRooms: number
+  maxUsers: number
+  maxRoomsPerUser: number
+  nRecentlyUpdatedRoomsToKeep: number
 
   private rooms: Map<RoomId, Room>
   private userConnections: Map<UserId, Map<RoomId, WebSocket>>
+
+  readonly recentlyUpdatedRooms: Array<Room>
+
   constructor({
     maxRooms,
     maxUsers,
     maxRoomsPerUser,
+    nRecentlyUpdatedRoomsToKeep,
   }: {
-    maxRooms: Number
-    maxUsers: Number
-    maxRoomsPerUser: Number
+    maxRooms: number
+    maxUsers: number
+    maxRoomsPerUser: number
+    nRecentlyUpdatedRoomsToKeep: number
   }) {
     this.maxRooms = maxRooms;
     this.maxUsers = maxUsers;
     this.maxRoomsPerUser = maxRoomsPerUser;
+    this.nRecentlyUpdatedRoomsToKeep = nRecentlyUpdatedRoomsToKeep;
     this.rooms = new Map();
     this.userConnections = new Map();
+    this.recentlyUpdatedRooms = new Array();
+  }
+
+  private putToRecentlyUpdatedRooms(room: Room): void {
+    this.removeFromRecentlyUpdatedRooms(room);
+    if (this.recentlyUpdatedRooms.length >= this.nRecentlyUpdatedRoomsToKeep) {
+      this.recentlyUpdatedRooms.pop();
+    }
+    this.recentlyUpdatedRooms.unshift(room);
+  }
+
+  private removeFromRecentlyUpdatedRooms(room: Room): void {
+    for (let i = 0; i < this.recentlyUpdatedRooms.length; ++i) {
+      if (room.id == this.recentlyUpdatedRooms[i].id) {
+        this.recentlyUpdatedRooms.splice(i, 1);
+        break;
+      }
+    }
   }
 
   /**
@@ -91,12 +122,14 @@ export class Rooms {
 
     if (room) {
       room.addUser(userId);
+      this.putToRecentlyUpdatedRooms(room);
       return right({ room, connectionToClose: existingConnection });
     } else {
       const newRoom = new Room(roomId, userId, state);
       this.rooms.set(roomId, newRoom);
       // not possible to have existing connection here
       existingConnection!;
+      this.putToRecentlyUpdatedRooms(newRoom);
       return right({ room: newRoom });
     }
   }
@@ -115,12 +148,13 @@ export class Rooms {
       return left('cannot update: not a host');
     }
 
-    room.state = state;
+    room.updateState(state);
     room?.userIds.forEach(userId => {
       // TODO do we want to send update to host (back)?
       if (userId === room.hostId) return;
       this.userConnections.get(userId)?.get(roomId)?.send(MessageCodec.encode({ eventType: 'update', roomId, state }));
     });
+    this.putToRecentlyUpdatedRooms(room);
     return right(null);
   }
 
@@ -139,6 +173,7 @@ export class Rooms {
     // should always exist
     this.userConnections.get(userId)!.delete(roomId);
     const { isEmpty, newHostId: newHost } = room!.removeUser(userId);
+    this.removeFromRecentlyUpdatedRooms(room);
 
     if (isEmpty) {
       this.rooms.delete(room.id);
