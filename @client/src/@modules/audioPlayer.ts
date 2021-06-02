@@ -45,7 +45,7 @@ class AudioPlayer {
     },  
   }
 
-  play(key: string) {
+  public play(key: string) {
     this.instance.src = this.map[key].path;
     this.instance.play();
     this.instance = new Audio();

@@ -3,9 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "dependencies": {
+    "@types/cors": "^2.8.10",
     "@types/express": "^4.17.12",
     "@types/ws": "^7.4.4",
     "concurrently": "^6.2.0",
+    "cors": "^2.8.5",
     "express": "^4.17.1",
     "fp-ts": "^2.10.5",
     "io-ts": "^2.2.16",

@@ -5,14 +5,16 @@ import { Rooms } from './@modules/room';
 import { RollerWebSocketServer } from './@modules/server';
 import { isLeft } from 'fp-ts/lib/Either';
 import { MessageCodec } from '@apex-roller/shared';
+import cors from 'cors';
 
 
 const PORT = process.env.PORT || 5000;
 
 const clientBuildPath = path.join(__dirname, '..', '..', '@client', 'build');
 const httpServer = express()
+  .use(cors())
   .use(express.static(clientBuildPath))
-  .get('/api/topRooms', (_, res) => res.json({topRooms: rooms.recentlyUpdatedRooms.map(room => room.id)}))
+  .get('/api/topRooms', (_, res) => res.json({ topRooms: rooms.recentlyUpdatedRooms.map(room => room.id) }))
   .get('/*', (_, res) => res.sendFile(path.join(clientBuildPath, 'index.html')))
   .listen(PORT, () => console.log(`Server is running in port: ${PORT}`));
 

@@ -13,8 +13,12 @@ import { useSettingsState } from '@components/Settings';
 import { SettingsImperativeAPI } from '@components/Settings/types';
 import StartOverlay from '@components/StartOverlay';
 import { FC } from 'react';
+import axios from 'axios';
+import { restHost } from '@utils/constants';
+import TopRooms from '@components/TopRooms';
 
 
+axios.defaults.baseURL = restHost;
 message.config({ maxCount: 3 });
 
 function App() {
@@ -35,6 +39,7 @@ function App() {
   return (
     <RootStyled>
       <div className="content">
+        <TopRooms />
         <Search />
         <Settings
           state={settings}

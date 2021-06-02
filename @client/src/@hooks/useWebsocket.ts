@@ -1,5 +1,5 @@
 import { UserShareableState as ShareableState, MessageCodec, RoomIdCodec } from '@apex-roller/shared';
-import { useEffectOnce, useLocation, usePrevious } from 'react-use';
+import { useEffectOnce, usePrevious } from 'react-use';
 import { useState, Dispatch, useRef, useEffect, useCallback } from 'react';
 import getOrCreateUserId from '@utils/getOrCreateUserId';
 import { ShareableStateAction } from './useShareableStateReducer';
@@ -8,10 +8,10 @@ import { PathReporter } from 'io-ts/lib/PathReporter';
 import { message as noty } from 'antd';
 import { SettingsState } from '@components/Settings/types';
 import audioPlayer from '@modules/audioPlayer';
+import { wsHost } from '@utils/constants';
+import useCurrentUri from './useCurrentUri';
 
 
-const productionWsHost = window.location.origin.replace(/^http/, 'ws');
-const host = process.env.NODE_ENV === 'production' ? productionWsHost : 'ws://localhost:5000';
 const maybeUserId = getOrCreateUserId();
 
 export type Mode =
@@ -31,8 +31,7 @@ export default function useWebsocket({
   dispatchShareableState: Dispatch<ShareableStateAction>
   settings: SettingsState
 }) {
-  const location = useLocation();
-  const uri = location.pathname?.slice(1);
+  const uri = useCurrentUri();
   const ws = useRef<WebSocket | null>(null);
   const [mode, setMode] = useState<Mode>({ type: 'initializing' });
 
@@ -49,7 +48,7 @@ export default function useWebsocket({
 
     ws.current?.send(MessageCodec.encode({
       eventType: 'connect', 
-      roomId:maybeRoomId.right,
+      roomId: maybeRoomId.right,
       userId: maybeUserId.right,
       state: {
         challengeIndex: shareableState.challengeIndex,
@@ -61,7 +60,7 @@ export default function useWebsocket({
   }, [shareableState, uri]);
 
   const init = useCallback((): Promise<WebSocket> => new Promise(resolve => {
-    ws.current = new WebSocket(host);
+    ws.current = new WebSocket(wsHost);
     ws.current.onopen = () => reconnect();
     ws.current.onmessage = ({ data }) => {
       const maybeMessage = MessageCodec.decode(data);

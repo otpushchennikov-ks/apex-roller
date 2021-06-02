@@ -41,7 +41,7 @@ export type UserShareableState = T.TypeOf<typeof UserShareableStateCodec>
 
 export const RoomIdCodec = T.brand(
   T.string,
-  (s): s is T.Branded<string, { readonly RoomId: symbol }> => s.length <= 10 && s.length > 0,
+  (s): s is T.Branded<string, { readonly RoomId: symbol }> => s.length <= 64 && s.length > 0,
   'RoomId'
 )
 export type RoomId = T.TypeOf<typeof RoomIdCodec>
@@ -130,3 +130,8 @@ export type Challenge = {
   runFn: (weaponsCount: number, isUnique?: boolean) => Weapon[]
 }
 export type ChallengeFactory = (name: string, poolFactory: () => Weapon[]) => Challenge
+
+export const TopRoomsCodec = T.type({
+  topRooms: T.array(RoomIdCodec),
+})
+export type TopRooms = T.TypeOf<typeof TopRoomsCodec>
