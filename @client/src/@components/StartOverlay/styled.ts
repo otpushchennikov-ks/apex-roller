@@ -1,5 +1,4 @@
 import styled from '@emotion/styled';
-import { css } from '@emotion/react';
 import { rootBgColor } from '@styled/constants';
 
 
@@ -13,7 +12,3 @@ export const StartOverlayStyled = styled.div`
   background-color: ${rootBgColor};
   display: flex;
 `;
-
-// export const initBtnStyles = css`
-//   position: ;
-// `;
