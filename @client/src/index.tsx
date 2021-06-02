@@ -11,6 +11,8 @@ import Challenges from '@components/Challenges';
 import { useRef } from 'react';
 import { useSettingsState } from '@components/Settings';
 import { SettingsImperativeAPI } from '@components/Settings/types';
+import StartOverlay from '@components/StartOverlay';
+import { FC } from 'react';
 
 
 message.config({ maxCount: 3 });
@@ -52,11 +54,17 @@ function App() {
   );
 }
 
-
+const Root: FC = () => {
+  return (
+    <StartOverlay
+      render={() => <App />}
+    />
+  );
+};
 
 render(
   <BrowserRouter>
-    <App />
+    <Root />
   </BrowserRouter>,
   document.getElementById('root')
 );

@@ -8,7 +8,7 @@ import { rootBgColor, gap } from '@styled/constants';
 import useImperativeApi from './useImperativeApi';
 import { useLocalStorage } from 'react-use';
 import { PlayCircleOutlined, RedoOutlined } from '@ant-design/icons';
-import { audioMap, playAudio } from '@utils/audio';
+import audioPlayer from '@modules/audioPlayer';
 
 
 const persistKey = 'settings-private-state-persist';
@@ -58,7 +58,7 @@ const Settings = forwardRef<SettingsImperativeAPI, SettingsProps>(({ mode, state
             notificationKey: nextNotificationKey,
           }))}
         >
-          {Object.entries(audioMap).map(([key, { name }]) => {
+          {Object.entries(audioPlayer.map).map(([key, { name }]) => {
             return (
               <Select.Option
                 key={key}
@@ -71,7 +71,7 @@ const Settings = forwardRef<SettingsImperativeAPI, SettingsProps>(({ mode, state
         </Select>
         <Button
           disabled={state.notificationIsEnabled}
-          onClick={() => playAudio(state.notificationKey)}
+          onClick={() => audioPlayer.play(state.notificationKey)}
         >
           <PlayCircleOutlined />
         </Button>

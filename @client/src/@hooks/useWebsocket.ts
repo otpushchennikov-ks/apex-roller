@@ -7,7 +7,7 @@ import { isLeft } from 'fp-ts/lib/Either';
 import { PathReporter } from 'io-ts/lib/PathReporter';
 import { message as noty } from 'antd';
 import { SettingsState } from '@components/Settings/types';
-import { playAudio } from '@utils/audio';
+import audioPlayer from '@modules/audioPlayer';
 
 
 const productionWsHost = window.location.origin.replace(/^http/, 'ws');
@@ -88,7 +88,7 @@ export default function useWebsocket({
         case 'update': {
           console.log('update incoming');
           dispatchShareableState({ type: 'replaceState', nextState: message.state });
-          playAudio(latestSettings.current.notificationKey);
+          audioPlayer.play(latestSettings.current.notificationKey);
           return;
         }
 

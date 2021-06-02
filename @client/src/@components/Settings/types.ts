@@ -1,6 +1,5 @@
 import { SetStateAction, Dispatch } from 'react';
 import { Mode } from '@hooks/useWebsocket';
-import { audioMap } from '@utils/audio';
 
 
 export type SettingsProps = {
@@ -15,7 +14,7 @@ export type SettingsImperativeAPI = {
 
 export type SettingsState = {
   notificationIsEnabled: boolean
-  notificationKey: keyof typeof audioMap
+  notificationKey: string
   backgroundImageIsEnabled: boolean
   backgroundSrc: string | null
   missClickGuard: {
