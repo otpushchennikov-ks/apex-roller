@@ -1,7 +1,6 @@
 import 'antd/dist/antd.css'
 import { render } from 'react-dom';
 import Search from '@components/Search';
-import { message } from 'antd';
 import RootStyled from '@styled/RootStyled';
 import useShareableStateReducer from '@hooks/useShareableStateReducer';
 import useWebsocket from '@hooks/useWebsocket';
@@ -11,13 +10,9 @@ import Challenges from '@components/Challenges';
 import { useSettingsState } from '@components/Settings';
 import StartOverlay from '@components/StartOverlay';
 import { FC } from 'react';
-import axios from 'axios';
-import { restHost } from '@utils/constants';
 import TopRooms from '@components/TopRooms';
+import './initConfig';
 
-
-axios.defaults.baseURL = restHost;
-message.config({ maxCount: 3 });
 
 function App() {
   const [settings, setSettings] = useSettingsState();
