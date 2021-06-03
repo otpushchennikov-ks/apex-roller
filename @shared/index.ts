@@ -24,7 +24,34 @@ export type WeaponType = T.TypeOf<typeof WeaponTypeCodec>
 const WeaponCodec = T.type({
   type: WeaponTypeCodec,
   ammoType: AmmoTypeCodec,
-  name: T.string,
+  name: T.union([
+    T.literal('HAVOC Rifle'),
+    T.literal('VK-47 Flatline'),
+    T.literal('Hemlok Burst AR'),
+    T.literal('R-301 Carbine'),
+    T.literal('Alternator SMG'),
+    T.literal('R-99 SMG'),
+    T.literal('Volt SMG'),
+    T.literal('RE-45 Auto'),
+    T.literal('Prowler Burst PDW'),
+    T.literal('Devotion LMG'),
+    T.literal('M600 Spitfire'),
+    T.literal('L-STAR EMG'),
+    T.literal('G7 Scout'),
+    T.literal('30-30 Repeater'),
+    T.literal('Bocek Compound Bow'),
+    T.literal('Triple Take'),
+    T.literal('EVA-8 Auto'),
+    T.literal('Mastiff Shotgun'),
+    T.literal('Peacekeeper'),
+    T.literal('Mozambique Shotgun'),
+    T.literal('Wingman'),
+    T.literal('P2020'),
+    T.literal('Charge Rifle'),
+    T.literal('Longbow DMR'),
+    T.literal('Sentinel'),
+    T.literal('Kraber .50-Cal Sniper'),
+  ]),
   isAirdrop: T.boolean,
   isArenaStart: T.boolean,
 })
@@ -125,10 +152,16 @@ export const MessageCodec = JSONCodec.pipe(T.union([
 export type Message = T.TypeOf<typeof MessageCodec>
 
 export type Challenge = {
+  mode: 'BR' | 'ARENA'
   name: string
+  getPoolQuantity: () => number
   runFn: (weaponsCount: number, isUnique?: boolean) => Weapon[]
 }
-export type ChallengeFactory = (name: string, poolFactory: () => Weapon[]) => Challenge
+export type ChallengeFactory = (
+  mode: Challenge['mode'],
+  name: Challenge['name'],
+  poolFactory: () => Weapon[],
+) => Challenge
 
 export const TopRoomsCodec = T.type({
   topRooms: T.array(RoomIdCodec),

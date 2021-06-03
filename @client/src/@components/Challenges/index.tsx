@@ -1,6 +1,6 @@
 import challengesData from '@modules/challenges';
-import { FC } from 'react';
-import { Skeleton, Empty, Button, Typography, Select, InputNumber, Checkbox, List } from 'antd';
+import { FC, useEffect } from 'react';
+import { Skeleton, Empty, Button, Typography, Select, Checkbox, List, InputNumber, message as noty } from 'antd';
 import { InfoOutlined, UndoOutlined, WarningOutlined } from '@ant-design/icons';
 import { ChallengesProps } from './types';
 import { AmmoType } from '@apex-roller/shared';
@@ -16,12 +16,16 @@ import { ReactComponent as RelicLightAmmo } from '@images/relic-light-ammo.svg';
 import { ReactComponent as RelicShotgunAmmo } from '@images/relic-shotgun-ammo.svg';
 import { ReactComponent as RelicSniperAmmo } from '@images/relic-sniper-ammo.svg';
 import ColumnStyled from '@styled/ColumnStyled';
-import { RowStyled, highlitedMixin } from '@styled';
+import RowStyled from '@styled/RowStyled';
+import highlitedMixin from '@styled/highlitedMixin';
 import { margin, lightYellowColor, gap } from '@styled/constants';
+import { onlyText } from 'react-children-utilities';
+import { v4 as uuid } from 'uuid';
+import Guard from '@utils/missClickGuard';
 import generateRandomIndex from '@utils/generateRandomIndex';
 
 
-const { Text } = Typography;
+const { Text, Title } = Typography;
 
 const relicAmmoTypeImagesMap: Record<AmmoType, typeof ArrowsAmmo> = {
   Light: RelicLightAmmo,
@@ -41,13 +45,26 @@ const ammoTypeImagesMap: Record<AmmoType, typeof ArrowsAmmo> = {
   Arrows: ArrowsAmmo,
 };
 
+const guard = new Guard();
+
 const Challenges: FC<ChallengesProps> = ({
   mode,
   reconnectWebsocket,
   shareableState,
   dispatchShareableState,
-  runMissclickguard,
+  settings: {
+    missClickGuard: {
+      isEnabled: guardIsEnabled,
+      delay: guardDelay,
+    },
+  },
 }) => {
+  const guardFailureMessage = `No more than once every ${guardDelay / 1000} seconds`;
+
+  useEffect(() => {
+    guard.reinit(guardIsEnabled ? guardDelay : 0);
+  }, [guardDelay, guardIsEnabled]);
+
   switch (mode.type) {
     case 'initializing':
       return (
@@ -118,20 +135,27 @@ const Challenges: FC<ChallengesProps> = ({
                   onChange={value => dispatchShareableState({ type: 'changeIndex', nextIndex: value })}
                   style={{ marginRight: gap, flexGrow: 2 }}
                   disabled={mode.type === 'client'}
+                  showSearch={true}
+                  filterOption={(inputText, node)=> onlyText(node?.children).toLowerCase().includes(inputText)}
                 >
-                  {challengesData.map(({ name }, i) => {
+                  {challengesData.map(({ mode, name }, i) => {
                     return (
-                      <Select.Option key={i} value={i}>
-                        {name}
+                      <Select.Option key={uuid()} value={i}>
+                        <Text strong={true} style={{ marginRight: gap / 2 }}>{mode} </Text>
+                        <span>{name}</span>
                       </Select.Option>
                     );
                   })}
                 </Select>
                 <Button
-                  onClick={() => dispatchShareableState({
-                    type: 'changeIndex',
-                    nextIndex: generateRandomIndex(challengesData.length),
-                  })}
+                  onClick={() => {
+                    guard.try('rollChallenge', () => {
+                      dispatchShareableState({
+                        type: 'changeIndex',
+                        nextIndex: generateRandomIndex(challengesData.length),
+                      });
+                    }, () => noty.info(guardFailureMessage));
+                  }}
                 >
                   <UndoOutlined />
                 </Button>
@@ -145,7 +169,22 @@ const Challenges: FC<ChallengesProps> = ({
                 min={1}
                 max={5}
                 value={shareableState.count}
-                onChange={value => dispatchShareableState({ type: 'changeCount', nextCount: value })}
+                onBlur={({ target: { value }}) => {
+                  if (Number.isNaN(Number.parseInt(value))) {
+                    dispatchShareableState({
+                      type: 'changeCount',
+                      nextCount: 1,
+                    });
+                  }
+                }}
+                onChange={value => {
+                  if (value && value > 0 && value !== shareableState.count) {
+                    dispatchShareableState({
+                      type: 'changeCount',
+                      nextCount: value,
+                    });
+                  }
+                }}
                 style={{ flexGrow: 2 }}
                 disabled={mode.type === 'client'}
               />
@@ -153,7 +192,12 @@ const Challenges: FC<ChallengesProps> = ({
             <div style={{ textAlign: 'center', margin: `0 auto ${['host', 'private'].includes(mode.type) ? `${gap}px` : 0}` }}>
               <Checkbox
                 checked={shareableState.isUnique}
-                onChange={({ target: { checked }}) => dispatchShareableState({ type: 'changeIsUnique', nextIsUnique: checked })}
+                onChange={({ target: { checked }}) => {
+                  dispatchShareableState({
+                    type: 'changeIsUnique',
+                    nextIsUnique: checked,
+                  });
+                }}
                 style={{ display: 'inline-flex' }}
                 disabled={mode.type === 'client'}
               >
@@ -164,9 +208,9 @@ const Challenges: FC<ChallengesProps> = ({
               <Button
                 style={{ display: 'block', margin: '0 auto' }}
                 onClick={() => {
-                  runMissclickguard(() => {
-                    dispatchShareableState({ type: 'regenerateWeapons' });
-                  });
+                  guard.try('useChallenge', () => {
+                    dispatchShareableState({ type: 'regenerateWeapons' })
+                  }, () => noty.info(guardFailureMessage));
                 }}
               >
                 <Text strong={true}>Use challenge</Text>
@@ -177,6 +221,7 @@ const Challenges: FC<ChallengesProps> = ({
             css={highlitedMixin}
             style={{ marginTop: margin }}
           >
+            <Title type="secondary" level={5}>Pool quantity: {challengesData[shareableState.challengeIndex].getPoolQuantity()}</Title>
             <List>
               {shareableState.weapons.map(({ name, ammoType, isAirdrop }, i) => {
                 const Ammo = (isAirdrop ? relicAmmoTypeImagesMap : ammoTypeImagesMap)[ammoType];

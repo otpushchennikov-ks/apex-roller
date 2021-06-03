@@ -1,14 +1,16 @@
-import { useState, forwardRef, useEffect, Dispatch, SetStateAction } from 'react';
+import { useState, useEffect, Dispatch, SetStateAction, FC } from 'react';
 import { Button, Checkbox, InputNumber, Select } from 'antd';
-import { SettingsProps, SettingsImperativeAPI, SettingsState } from './types';
+import { SettingsProps, SettingsState } from './types';
 import { Global, css } from '@emotion/react';
 import generateRandomBackgroundSrc from '@utils/generateRandomBackgroundSrc';
-import { RootStyled, highlitedMixin, ColumnStyled, RowStyled } from '@styled';
 import { rootBgColor, gap } from '@styled/constants';
-import useImperativeApi from './useImperativeApi';
 import { useLocalStorage } from 'react-use';
 import { PlayCircleOutlined, RedoOutlined } from '@ant-design/icons';
 import audioPlayer from '@modules/audioPlayer';
+import RootStyled from '@styled/RootStyled';
+import highlitedMixin from '@styled/highlitedMixin';
+import ColumnStyled from '@styled/ColumnStyled';
+import RowStyled from '@styled/RowStyled';
 
 
 const persistKey = 'settings-private-state-persist';
@@ -31,11 +33,7 @@ export const useSettingsState: () => [SettingsState, Dispatch<SetStateAction<Set
   return [state, setState];
 };
 
-const Settings = forwardRef<SettingsImperativeAPI, SettingsProps>(({ mode, state, setState }, ref) => {
-
-
-  useImperativeApi(ref, state);
-
+const Settings: FC<SettingsProps> = ({ mode, state, setState }) => {
   return (
     <ColumnStyled css={highlitedMixin} style={{ position: 'absolute', top: 20, right: 20, padding: 10 }}>
       <RowStyled style={{ marginBottom: gap }}>
@@ -152,6 +150,6 @@ const Settings = forwardRef<SettingsImperativeAPI, SettingsProps>(({ mode, state
       `}/>
     </ColumnStyled>
   );
-});
+};
 
 export default Settings;

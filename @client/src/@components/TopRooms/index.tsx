@@ -7,9 +7,10 @@ import { PathReporter } from 'io-ts/lib/PathReporter';
 import useCurrentUri from '@hooks/useCurrentUri';
 import { TopRoomsStyled } from './styled';
 import { useHistory } from 'react-router';
-import { highlitedMixin, RowStyled } from '@styled';
 import { EnterOutlined, RedoOutlined } from '@ant-design/icons';
 import { gap, margin } from '@styled/constants';
+import highlitedMixin from '@styled/highlitedMixin';
+import RowStyled from '@styled/RowStyled';
 
 
 const { Text } = Typography;

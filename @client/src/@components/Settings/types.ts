@@ -8,10 +8,6 @@ export type SettingsProps = {
   setState: Dispatch<SetStateAction<SettingsState>>
 }
 
-export type SettingsImperativeAPI = {
-  runGuard: (fn: () => any) => void
-}
-
 export type SettingsState = {
   notificationIsEnabled: boolean
   notificationKey: string
