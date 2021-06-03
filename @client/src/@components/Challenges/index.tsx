@@ -1,5 +1,5 @@
 import challengesData from '@modules/challenges';
-import { FC, useEffect } from 'react';
+import { FC, useCallback, useEffect, useRef } from 'react';
 import { Skeleton, Empty, Button, Typography, Select, Checkbox, List, InputNumber, message as noty } from 'antd';
 import { InfoOutlined, UndoOutlined, WarningOutlined } from '@ant-design/icons';
 import { ChallengesProps } from './types';
@@ -23,7 +23,15 @@ import { onlyText } from 'react-children-utilities';
 import { v4 as uuid } from 'uuid';
 import Guard from '@utils/missClickGuard';
 import generateRandomIndex from '@utils/generateRandomIndex';
+import WebsocketService from '@modules/websocketService';
+import useCurrentRoomId from '@hooks/useCurrentRoomId';
+import audioPlayer from '@modules/audioPlayer';
+import getOrCreateUserId from '@utils/getOrCreateUserId';
+import { isLeft } from 'fp-ts/lib/Either';
+import { PathReporter } from 'io-ts/lib/PathReporter';
 
+
+const wss = new WebsocketService();
 
 const { Text, Title } = Typography;
 
@@ -49,21 +57,92 @@ const guard = new Guard();
 
 const Challenges: FC<ChallengesProps> = ({
   mode,
-  reconnectWebsocket,
+  setMode,
   shareableState,
   dispatchShareableState,
-  settings: {
-    missClickGuard: {
-      isEnabled: guardIsEnabled,
-      delay: guardDelay,
-    },
-  },
+  settings,
 }) => {
+  const { missClickGuard: { delay: guardDelay, isEnabled: guardIsEnabled }} = settings;
+
   const guardFailureMessage = `No more than once every ${guardDelay / 1000} seconds`;
 
   useEffect(() => {
     guard.reinit(guardIsEnabled ? guardDelay : 0);
   }, [guardDelay, guardIsEnabled]);
+
+  const maybeRoomId = useCurrentRoomId();
+
+  const stableDispatchShareableState = useCallback(dispatchShareableState, [dispatchShareableState]);
+  const stableSetMode = useCallback(setMode, [setMode]);
+
+  const latestMode = useRef(mode);
+  useEffect(() => void (latestMode.current = mode));
+  const latestSettings = useRef(settings);
+  useEffect(() => void (latestSettings.current = settings));
+  const latestShareableState = useRef(shareableState);
+  useEffect(() => void (latestShareableState.current = shareableState));
+
+  useEffect(() => {
+    const maybeUserId = getOrCreateUserId();
+
+    if (isLeft(maybeUserId)) {
+      noty.error(PathReporter.report(maybeUserId));
+      return;
+    }
+
+    if (isLeft(maybeRoomId)) {
+      noty.error(PathReporter.report(maybeRoomId));
+      return;
+    }
+    
+    wss.connect(maybeUserId.right, maybeRoomId.right, latestShareableState.current);
+
+    wss.on('connected', message => {
+      noty.success(message.eventType);
+      stableSetMode({ type: message.isHost ? 'host' : 'client' });
+      if (!message.isHost) {
+        stableDispatchShareableState({ type: 'replaceState', nextState: message.state });
+      }  
+    });
+
+    wss.on('disconnect', message => {
+      noty.info(message.eventType);
+      stableSetMode({ type: 'disconnected' });
+    });
+
+    wss.on('error', message => {
+      noty.error(message.message);
+      stableSetMode({ type: 'error', text: message.message });  
+    });
+    
+    wss.on('update', message => {
+      stableDispatchShareableState({ type: 'replaceState', nextState: message.state });
+      audioPlayer.play(latestSettings.current.notificationKey);  
+    });
+  }, [
+    maybeRoomId,
+    stableDispatchShareableState,
+    stableSetMode,
+  ]);
+
+  useEffect(() => {
+    if (latestMode.current.type !== 'host') return;
+
+    if (isLeft(maybeRoomId)) {
+      noty.error(PathReporter.report(maybeRoomId));
+      return;
+    }
+
+    wss.send({
+      eventType: 'update',
+      roomId: maybeRoomId.right,
+      state: shareableState,
+    });
+  }, [
+    maybeRoomId,
+    shareableState,
+  ]);
+
 
   switch (mode.type) {
     case 'initializing':
@@ -98,7 +177,9 @@ const Challenges: FC<ChallengesProps> = ({
             description={<div style={{ marginBottom: margin, fontWeight: 'bold', fontSize: 32 }}>Disconnected</div>}
           />
           <Button
-            onClick={() => reconnectWebsocket()}
+            // TODO: reconnect
+            // onClick={() => reconnectWebsocket()}
+            onClick={() => {}}
             size="large"
           >
             Reconnect
@@ -148,6 +229,7 @@ const Challenges: FC<ChallengesProps> = ({
                   })}
                 </Select>
                 <Button
+                  disabled={mode.type !== 'host'}
                   onClick={() => {
                     guard.try('rollChallenge', () => {
                       dispatchShareableState({

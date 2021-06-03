@@ -1,4 +1,3 @@
-
 class AudioPlayer {
   private instance: HTMLAudioElement;
 

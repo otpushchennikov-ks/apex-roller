@@ -1,5 +1,5 @@
 import { SetStateAction, Dispatch } from 'react';
-import { Mode } from '@hooks/useWebsocket';
+import { Mode } from '@components/App/types';
 
 
 export type SettingsProps = {

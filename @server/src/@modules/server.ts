@@ -27,7 +27,6 @@ export function RollerWebSocketServer(
     onDisconnect: (context: ConnectionContext) => void,
   }, 
 ): Server {
-  //TODO: Убрать убращение по userId + roomId в этой мапе
   const potentialReconnects = new Map();
 
   server.on('connection', (connection, request) => {

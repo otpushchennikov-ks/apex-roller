@@ -1,10 +1,10 @@
-import { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { FC, useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { TopRoomsCodec, RoomId } from '@apex-roller/shared';
 import { isLeft } from 'fp-ts/Either';
 import { message as noty, Typography, Button } from 'antd';
 import { PathReporter } from 'io-ts/lib/PathReporter';
-import useCurrentUri from '@hooks/useCurrentUri';
+import useCurrentRoomId from '@hooks/useCurrentRoomId';
 import { TopRoomsStyled } from './styled';
 import { useHistory } from 'react-router';
 import { EnterOutlined, RedoOutlined } from '@ant-design/icons';
@@ -17,7 +17,7 @@ const { Text } = Typography;
 
 const TopRoomsComponent: FC = () => {
   const history = useHistory();
-  const uri = useCurrentUri();
+  const maybeRoomId = useCurrentRoomId();
 
   const [topRooms, setTopRooms] = useState<RoomId[]>([]);
 
@@ -43,7 +43,7 @@ const TopRoomsComponent: FC = () => {
     fetchTopRooms().then(setTopRooms);
   }, [fetchTopRooms]);
 
-  const topRoomsSlice = useMemo(() => topRooms.filter(roomId => roomId !== uri), [topRooms, uri]);
+  const topRoomsSlice = isLeft(maybeRoomId) ? topRooms : topRooms.filter(roomId => roomId !== maybeRoomId.right);
 
   return (
     <>
