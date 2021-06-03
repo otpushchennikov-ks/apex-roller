@@ -13,6 +13,7 @@
     "io-ts": "^2.2.16",
     "nodemon": "^2.0.7",
     "typescript": "^4.3.2",
+    "winston": "^3.3.3",
     "ws": "^7.4.6"
   },
   "scripts": {

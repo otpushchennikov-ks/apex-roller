@@ -6,16 +6,19 @@ import { RollerWebSocketServer } from './@modules/server';
 import { isLeft } from 'fp-ts/lib/Either';
 import { MessageCodec } from '@apex-roller/shared';
 import cors from 'cors';
-
+import getOrCreateLogger from './@modules/logger'
 
 const PORT = process.env.PORT || 5000;
 
-const clientBuildPath = path.join(__dirname, '..', '..', '@client', 'build');
+const CLIENT_BUILD_PATH = path.join(__dirname, '..', '..', '@client', 'build');
+
+const logger = getOrCreateLogger('root');
+
 const httpServer = express()
   .use(cors())
-  .use(express.static(clientBuildPath))
+  .use(express.static(CLIENT_BUILD_PATH))
   .get('/api/topRooms', (_, res) => res.json({ topRooms: rooms.recentlyUpdatedRooms.map(room => room.id) }))
-  .get('/*', (_, res) => res.sendFile(path.join(clientBuildPath, 'index.html')))
+  .get('/*', (_, res) => res.sendFile(path.join(CLIENT_BUILD_PATH, 'index.html')))
   .listen(PORT, () => console.log(`Server is running in port: ${PORT}`));
 
 const rooms = new Rooms({ maxRooms: 50, maxUsers: 50, maxRoomsPerUser: 3, nRecentlyUpdatedRoomsToKeep: 5 });
@@ -35,7 +38,7 @@ RollerWebSocketServer(
         };
       }
       if (result.right.connectionToClose) {
-        console.log(`dropping previous connection of user ${userId} to room ${roomId}`);
+        logger.info(`dropping previous connection of user ${userId} to room ${roomId}`);
         result.right.connectionToClose.send(MessageCodec.encode({
           eventType: 'disconnect',
         }));
@@ -67,14 +70,12 @@ RollerWebSocketServer(
           message: result.left,
         };
       }
-
-      console.log(`updated state in room ${context.roomId}: ${JSON.stringify(state)}`);
     },
     onDisconnect: (context) => {
       if (context.roomId && context.userId) {
         rooms.disconnectFromRoom(context.roomId, context.userId);
+        logger.info(`user ${context.userId} disconnected from room ${context.roomId}`);
       }
-      console.log(`user ${context.userId} disconnected`);
     }
   }
 );

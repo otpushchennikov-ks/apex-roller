@@ -2,7 +2,9 @@ import WebSocket from 'ws';
 import { left, right, Either } from 'fp-ts/lib/Either';
 
 import { UserShareableState, RoomId, UserId, MessageCodec } from '@apex-roller/shared';
+import getOrCreateLogger from './logger'
 
+const logger = getOrCreateLogger('rooms');
 
 export class Room {
   readonly id: RoomId
@@ -123,6 +125,7 @@ export class Rooms {
     if (room) {
       room.addUser(userId);
       this.putToRecentlyUpdatedRooms(room);
+      logger.info(`added user ${userId} to existing room ${room.id}`);
       return right({ room, connectionToClose: existingConnection });
     } else {
       const newRoom = new Room(roomId, userId, state);
@@ -130,6 +133,7 @@ export class Rooms {
       // not possible to have existing connection here
       existingConnection!;
       this.putToRecentlyUpdatedRooms(newRoom);
+      logger.info(`created new room ${newRoom.id} with host ${userId}`);
       return right({ room: newRoom });
     }
   }
@@ -149,11 +153,13 @@ export class Rooms {
     }
 
     room.updateState(state);
-    room?.userIds.forEach(userId => {
+    const serializedUpdate = MessageCodec.encode({ eventType: 'update', roomId, state });
+    room.userIds.forEach(userId => {
       // TODO do we want to send update to host (back)?
       if (userId === room.hostId) return;
-      this.userConnections.get(userId)?.get(roomId)?.send(MessageCodec.encode({ eventType: 'update', roomId, state }));
+      this.userConnections.get(userId)?.get(roomId)?.send(serializedUpdate);
     });
+    logger.info(`updated state of room ${room.id}: ${serializedUpdate}`);
     this.putToRecentlyUpdatedRooms(room);
     return right(null);
   }
@@ -177,6 +183,7 @@ export class Rooms {
 
     if (isEmpty) {
       this.rooms.delete(room.id);
+      logger.info(`deleted empty room ${room.id}`);
     } else if (newHost) {
       this.userConnections.get(newHost)?.get(roomId)?.send(MessageCodec.encode({
         eventType: 'connected',
@@ -184,6 +191,7 @@ export class Rooms {
         roomId,
         state: room.state,
       }));
+      logger.info(`elected new host ${newHost} in room ${room.id}`);
     }
   }
 }

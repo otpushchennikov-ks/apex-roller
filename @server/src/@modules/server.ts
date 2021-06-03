@@ -4,6 +4,10 @@ import { isLeft } from 'fp-ts/lib/Either';
 
 import { ConnectMessage, UpdateMessage, Message, MessageCodec, UserId, RoomId } from '@apex-roller/shared';
 
+import getOrCreateLogger from './logger';
+
+const logger = getOrCreateLogger('ws');
+
 export type ConnectionContext = {
   isAlive: boolean,
   lastPong: number,
@@ -30,7 +34,7 @@ export function RollerWebSocketServer(
     const context: ConnectionContext = { isAlive: true, lastPong: Date.now() };
     
     const disconnect = () => {
-      console.log(`closing connection to ${request.socket.remoteAddress}`);
+      logger.info(`closing connection to ${request.socket.remoteAddress}`);
       if (heartbeat) {
         clearInterval(heartbeat);
       }
@@ -56,11 +60,11 @@ export function RollerWebSocketServer(
     connection.on('message', data => {
       const maybeMessage = MessageCodec.decode(data.toString())
       if (isLeft(maybeMessage)) {
-        console.log(PathReporter.report(maybeMessage))
+        logger.error(PathReporter.report(maybeMessage))
         return;
       }
       const message = maybeMessage.right
-      console.log(`${request.socket.remoteAddress} -> ${data.toString()}`)
+      logger.info(`${context.userId ?? request.socket.remoteAddress} -> ${data.toString()}`)
   
       let response : Message | undefined;
       switch (message.eventType) {
@@ -68,7 +72,7 @@ export function RollerWebSocketServer(
           const reconnectTimeoutHandle = potentialReconnects.get(message.userId + message.roomId);
           if (reconnectTimeoutHandle) {
             clearTimeout(reconnectTimeoutHandle);
-            console.log(`user ${message.userId} is reconnecting`);
+            logger.info(`user ${message.userId} is reconnecting to room ${message.roomId}`);
           }
           response = handlers.onConnect(message, context, connection);
           break;
@@ -84,7 +88,7 @@ export function RollerWebSocketServer(
       if (response) {
         const serializedResponse = MessageCodec.encode(response); 
         connection.send(serializedResponse);
-        console.log(`${request.socket.remoteAddress} <- ${serializedResponse}`)
+        logger.info(`${context.userId ?? request.socket.remoteAddress} <- ${serializedResponse}`)
       }
     });
 
