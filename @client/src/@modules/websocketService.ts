@@ -24,32 +24,50 @@ class WebSocketService {
     }  
   }
 
-  connect(userId: UserId, roomId: RoomId, state: UserShareableState) {
-    this.subscribersMap.clear();
+  connect(userId: UserId, roomId: RoomId, state: UserShareableState): Promise<void> {
+    return new Promise(resolve => {
 
-    if (this.client.readyState === WebSocket.OPEN) {
-      this.client.close();
-      this.client = new WebSocket(wsHost);
-    }
-
-    this.client.onopen = () => {
-      this.client.send(MessageCodec.encode({
-        eventType: 'connect',
-        roomId,
-        userId,
-        state,
-      }));
+      this.subscribersMap.clear();
   
-      this.client.onmessage = ({ data }) => {
-        const maybeMessage = MessageCodec.decode(data);
-        if (isLeft(maybeMessage)) {
-          noty.error(PathReporter.report(maybeMessage));
-          return;
-        }
+      if (this.client.readyState === WebSocket.OPEN) {
+        this.client.onclose = () => {
+          this.client = new WebSocket(wsHost);
+          this.client.onopen = () => {
+            resolve()
+            run();
+          };
+        };
   
-        this.callSubscribersByEvent(maybeMessage.right.eventType, maybeMessage.right);
+        this.client.close();
+      } else {
+        this.client = new WebSocket(wsHost);
+        this.client.onopen = () => {
+          resolve();
+          run();
+        };
+      }
+  
+      const run = () => {
+        this.client.send(MessageCodec.encode({
+          eventType: 'connect',
+          roomId,
+          userId,
+          state,
+        }));
+    
+        this.client.onmessage = ({ data }) => {
+          const maybeMessage = MessageCodec.decode(data);
+          if (isLeft(maybeMessage)) {
+            const error = PathReporter.report(maybeMessage);
+            console.log(error);
+            noty.error(error);
+            return;
+          }
+    
+          this.callSubscribersByEvent(maybeMessage.right.eventType, maybeMessage.right);
+        };
       };
-    };
+    });
   }
 
   on<E extends EventType, M extends MessageOfEventType<E>>(eventType: E, subscriber: SubscriberFn<M>) {
@@ -65,6 +83,14 @@ class WebSocketService {
   send(message: Message) {
     if (this.client.readyState === WebSocket.OPEN) {
       this.client.send(MessageCodec.encode(message));
+    }
+  }
+
+  disconnect() {
+    this.subscribersMap.clear();
+
+    if (this.client.readyState === WebSocket.OPEN) {
+      this.client.close();
     }
   }
 }

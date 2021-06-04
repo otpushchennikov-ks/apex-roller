@@ -7,5 +7,8 @@ export default function useCurrentRoomId() {
   const uri = useLocation()?.pathname?.slice(1)
   const maybeRoomId = useMemo(() => RoomIdCodec.decode(!uri ? uri : window.decodeURI(uri)), [uri]);
 
-  return maybeRoomId;
+  return {
+    maybeRoomId,
+    uriIsEmpty: !uri,
+  };
 }

@@ -7,14 +7,14 @@ import generateRandomIndex from '@utils/generateRandomIndex';
 
 const statePersistKey = 'shareable-state-persist';
 
-export type ShareableStateAction = 
+type ShareableStateAction = 
   | { type: 'changeIndex', nextIndex: number }
   | { type: 'changeCount', nextCount: number }
   | { type: 'changeIsUnique', nextIsUnique: boolean }
   | { type: 'regenerateWeapons' }
   | { type: 'replaceState', nextState: ShareableState };
 
-const defaultState: ShareableState = {
+const defaultShareableState: ShareableState = {
   challengeIndex: 0,
   count: 2,
   isUnique: true,
@@ -58,8 +58,8 @@ const reducer = (state: ShareableState, action: ShareableStateAction): Shareable
   }
 };
 
-export default function useShareableStateReducer() {
-  const [initialState, persistState] = useLocalStorage(statePersistKey, defaultState);
+function useShareableState() {
+  const [initialState, persistState] = useLocalStorage(statePersistKey, defaultShareableState);
   const [state, dispatch] = useReducer(reducer, initialState!);
   useEffect(() => persistState(state), [state, persistState]);
 
@@ -68,3 +68,7 @@ export default function useShareableStateReducer() {
     dispatchShareableState: dispatch,
   };
 }
+
+export type { ShareableStateAction };
+export { defaultShareableState };
+export default useShareableState;

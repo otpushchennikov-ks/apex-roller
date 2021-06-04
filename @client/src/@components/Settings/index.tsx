@@ -1,58 +1,39 @@
-import { useState, useEffect, Dispatch, SetStateAction, FC } from 'react';
+import { FC } from 'react';
 import { Button, Checkbox, InputNumber, Select } from 'antd';
-import { SettingsProps, SettingsState } from './types';
 import { Global, css } from '@emotion/react';
 import generateRandomBackgroundSrc from '@utils/generateRandomBackgroundSrc';
 import { rootBgColor, gap } from '@styled/constants';
-import { useLocalStorage } from 'react-use';
 import { PlayCircleOutlined, RedoOutlined } from '@ant-design/icons';
 import audioPlayer from '@modules/audioPlayer';
 import RootStyled from '@styled/RootStyled';
 import highlitedMixin from '@styled/highlitedMixin';
 import ColumnStyled from '@styled/ColumnStyled';
 import RowStyled from '@styled/RowStyled';
+import useGlobalState from '@hooks/useGlobalState';
 
 
-const persistKey = 'settings-private-state-persist';
+const Settings: FC = () => {
+  const { settings, setSettings, mode } = useGlobalState();
 
-const defaultSettingsState: SettingsState = {
-  notificationIsEnabled: false,
-  notificationKey: 'allEyesOnMe',
-  backgroundImageIsEnabled: false,
-  backgroundSrc: null,
-  missClickGuard: {
-    isEnabled: true,
-    delay: 1000,
-  },
-};
-
-export const useSettingsState: () => [SettingsState, Dispatch<SetStateAction<SettingsState>>] = () => {
-  const [initialState, persistState] = useLocalStorage(persistKey, defaultSettingsState);
-  const [state, setState] = useState<SettingsState>(initialState!);
-  useEffect(() => persistState(state), [state, persistState]);
-  return [state, setState];
-};
-
-const Settings: FC<SettingsProps> = ({ mode, state, setState }) => {
   return (
     <ColumnStyled css={highlitedMixin} style={{ position: 'absolute', top: 20, right: 20, padding: 10 }}>
       <RowStyled style={{ marginBottom: gap }}>
         <Checkbox
-          checked={state.notificationIsEnabled}
-          onChange={({ target: { checked }}) => setState(state => ({
-            ...state,
+          checked={settings.notificationIsEnabled}
+          onChange={({ target: { checked }}) => setSettings(settings => ({
+            ...settings,
             notificationIsEnabled: checked,
           }))}
         >
           Notification
         </Checkbox>
         <Select
-          disabled={!state.notificationIsEnabled}
+          disabled={!settings.notificationIsEnabled}
           style={{ width: 175, marginRight: 10 }}
           dropdownMatchSelectWidth={false}
-          value={state.notificationKey ?? undefined}
-          onChange={nextNotificationKey => setState(state => ({
-            ...state,
+          value={settings.notificationKey ?? undefined}
+          onChange={nextNotificationKey => setSettings(settings => ({
+            ...settings,
             notificationKey: nextNotificationKey,
           }))}
         >
@@ -68,8 +49,8 @@ const Settings: FC<SettingsProps> = ({ mode, state, setState }) => {
           })}
         </Select>
         <Button
-          disabled={state.notificationIsEnabled}
-          onClick={() => audioPlayer.play(state.notificationKey)}
+          disabled={settings.notificationIsEnabled}
+          onClick={() => audioPlayer.play(settings.notificationKey)}
         >
           <PlayCircleOutlined />
         </Button>
@@ -77,11 +58,11 @@ const Settings: FC<SettingsProps> = ({ mode, state, setState }) => {
       {['host', 'private'].includes(mode.type) &&
         <div style={{ marginBottom: gap }}>
           <Checkbox
-            checked={state.missClickGuard.isEnabled}
-            onChange={({ target: { checked }}) => setState(state => ({
-              ...state,
+            checked={settings.missClickGuard.isEnabled}
+            onChange={({ target: { checked }}) => setSettings(settings => ({
+              ...settings,
               missClickGuard: {
-                ...state.missClickGuard,
+                ...settings.missClickGuard,
                 isEnabled: checked,
               }
             }))}
@@ -92,38 +73,38 @@ const Settings: FC<SettingsProps> = ({ mode, state, setState }) => {
             min={1}
             step={0.1}
             max={5}
-            value={state.missClickGuard.delay / 1000}
-            onChange={value => {console.log(value); setState(state => ({
-              ...state,
+            value={settings.missClickGuard.delay / 1000}
+            onChange={value => setSettings(settings => ({
+              ...settings,
               missClickGuard: {
-                ...state.missClickGuard,
+                ...settings.missClickGuard,
                 delay: value * 1000,
               }
-            }))}}
+            }))}
             style={{ margin: `0 ${gap}px 0 2px` }}
-            disabled={!state.missClickGuard.isEnabled}
+            disabled={!settings.missClickGuard.isEnabled}
           />
           <span>seconds</span>
         </div>
       }
       <div>
         <Checkbox
-          checked={state.backgroundImageIsEnabled}
+          checked={settings.backgroundImageIsEnabled}
           onChange={({ target: { checked }}) => {
-            setState(state => ({
-              ...state,
+            setSettings(settings => ({
+              ...settings,
               backgroundImageIsEnabled: checked,
             }));
 
             if (!checked) {
-              setState(state => ({
-                ...state,
+              setSettings(settings => ({
+                ...settings,
                 backgroundSrc: null,
               }));
             } else {
-              setState(state => ({
-                ...state,
-                backgroundSrc: generateRandomBackgroundSrc(state.backgroundSrc ?? undefined),
+              setSettings(settings => ({
+                ...settings,
+                backgroundSrc: generateRandomBackgroundSrc(settings.backgroundSrc ?? undefined),
               }));
             }
           }}
@@ -131,10 +112,10 @@ const Settings: FC<SettingsProps> = ({ mode, state, setState }) => {
           Background image
         </Checkbox>
         <Button
-          disabled={!state.backgroundImageIsEnabled}
-          onClick={() => setState(state => ({
-            ...state,
-            backgroundSrc: generateRandomBackgroundSrc(state.backgroundSrc ?? undefined),
+          disabled={!settings.backgroundImageIsEnabled}
+          onClick={() => setSettings(settings => ({
+            ...settings,
+            backgroundSrc: generateRandomBackgroundSrc(settings.backgroundSrc ?? undefined),
           }))}
         >
           <RedoOutlined />
@@ -143,7 +124,7 @@ const Settings: FC<SettingsProps> = ({ mode, state, setState }) => {
       <Global styles={css`
         ${RootStyled} {
           background-color: ${rootBgColor};
-          background-image:  ${state.backgroundSrc ? `url(${state.backgroundSrc})` : ''};
+          background-image:  ${settings.backgroundSrc ? `url(${settings.backgroundSrc})` : ''};
           background-position: center;
           background-size: cover;
         }

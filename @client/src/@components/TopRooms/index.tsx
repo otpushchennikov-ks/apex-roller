@@ -17,7 +17,7 @@ const { Text } = Typography;
 
 const TopRoomsComponent: FC = () => {
   const history = useHistory();
-  const maybeRoomId = useCurrentRoomId();
+  const { maybeRoomId } = useCurrentRoomId();
 
   const [topRooms, setTopRooms] = useState<RoomId[]>([]);
 

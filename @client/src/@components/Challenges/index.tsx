@@ -1,8 +1,7 @@
 import challengesData from '@modules/challenges';
-import { FC, useCallback, useEffect, useRef } from 'react';
+import { FC, useCallback, useEffect } from 'react';
 import { Skeleton, Empty, Button, Typography, Select, Checkbox, List, InputNumber, message as noty } from 'antd';
 import { InfoOutlined, UndoOutlined, WarningOutlined } from '@ant-design/icons';
-import { ChallengesProps } from './types';
 import { AmmoType } from '@apex-roller/shared';
 import { ReactComponent as ArrowsAmmo } from '@images/arrows-ammo.svg';
 import { ReactComponent as EnergyAmmo } from '@images/energy-ammo.svg';
@@ -29,6 +28,8 @@ import audioPlayer from '@modules/audioPlayer';
 import getOrCreateUserId from '@utils/getOrCreateUserId';
 import { isLeft } from 'fp-ts/lib/Either';
 import { PathReporter } from 'io-ts/lib/PathReporter';
+import { useLatest, useUpdateEffect } from 'react-use';
+import useGlobalState from '@hooks/useGlobalState';
 
 
 const wss = new WebsocketService();
@@ -55,81 +56,107 @@ const ammoTypeImagesMap: Record<AmmoType, typeof ArrowsAmmo> = {
 
 const guard = new Guard();
 
-const Challenges: FC<ChallengesProps> = ({
-  mode,
-  setMode,
-  shareableState,
-  dispatchShareableState,
-  settings,
-}) => {
-  const { missClickGuard: { delay: guardDelay, isEnabled: guardIsEnabled }} = settings;
+const Challenges: FC = () => {
+  const {
+    mode,
+    setMode,
+    shareableState,
+    dispatchShareableState,
+    settings,
+  } = useGlobalState();
+  const { maybeRoomId, uriIsEmpty } = useCurrentRoomId();
 
+  const stableDispatchShareableState = useLatest(dispatchShareableState);
+  const stableSetMode = useLatest(setMode);
+  const stableMode = useLatest(mode);
+  const stableSettings = useLatest(settings);
+  const stableShareableState = useLatest(shareableState);
+  const stableUriIsEmpty = useLatest(uriIsEmpty);
+  
+  const {
+    missClickGuard: {
+      delay: guardDelay,
+      isEnabled: guardIsEnabled,
+    },
+  } = settings;
   const guardFailureMessage = `No more than once every ${guardDelay / 1000} seconds`;
 
   useEffect(() => {
     guard.reinit(guardIsEnabled ? guardDelay : 0);
   }, [guardDelay, guardIsEnabled]);
 
-  const maybeRoomId = useCurrentRoomId();
-
-  const stableDispatchShareableState = useCallback(dispatchShareableState, [dispatchShareableState]);
-  const stableSetMode = useCallback(setMode, [setMode]);
-
-  const latestMode = useRef(mode);
-  useEffect(() => void (latestMode.current = mode));
-  const latestSettings = useRef(settings);
-  useEffect(() => void (latestSettings.current = settings));
-  const latestShareableState = useRef(shareableState);
-  useEffect(() => void (latestShareableState.current = shareableState));
-
-  useEffect(() => {
-    const maybeUserId = getOrCreateUserId();
-
-    if (isLeft(maybeUserId)) {
-      noty.error(PathReporter.report(maybeUserId));
-      return;
-    }
-
-    if (isLeft(maybeRoomId)) {
-      noty.error(PathReporter.report(maybeRoomId));
-      return;
-    }
-    
-    wss.connect(maybeUserId.right, maybeRoomId.right, latestShareableState.current);
-
+  const registerHandlers = useCallback(() => {
     wss.on('connected', message => {
       noty.success(message.eventType);
-      stableSetMode({ type: message.isHost ? 'host' : 'client' });
+      stableSetMode.current({ type: message.isHost ? 'host' : 'client' });
       if (!message.isHost) {
-        stableDispatchShareableState({ type: 'replaceState', nextState: message.state });
+        stableDispatchShareableState.current({ type: 'replaceState', nextState: message.state });
       }  
     });
 
     wss.on('disconnect', message => {
       noty.info(message.eventType);
-      stableSetMode({ type: 'disconnected' });
+      stableSetMode.current({ type: 'disconnected' });
+      wss.disconnect();
     });
 
     wss.on('error', message => {
       noty.error(message.message);
-      stableSetMode({ type: 'error', text: message.message });  
+      stableSetMode.current({ type: 'error', text: message.message });  
     });
     
     wss.on('update', message => {
-      stableDispatchShareableState({ type: 'replaceState', nextState: message.state });
-      audioPlayer.play(latestSettings.current.notificationKey);  
+      stableDispatchShareableState.current({ type: 'replaceState', nextState: message.state });
+      audioPlayer.play(stableSettings.current.notificationKey);  
     });
-  }, [
-    maybeRoomId,
-    stableDispatchShareableState,
-    stableSetMode,
-  ]);
+  }, [stableDispatchShareableState, stableSetMode, stableSettings]);
 
+  // Получение эвентов
   useEffect(() => {
-    if (latestMode.current.type !== 'host') return;
+    if (stableUriIsEmpty.current) {
+      wss.disconnect();
+      noty.info('private');
+      stableSetMode.current({ type: 'private' });
+      return;
+    }
+
+    const maybeUserId = getOrCreateUserId();
+
+    if (isLeft(maybeUserId)) {
+      const error = PathReporter.report(maybeUserId);
+      console.log(error);
+      noty.error(error);
+      return;
+    }
 
     if (isLeft(maybeRoomId)) {
-      noty.error(PathReporter.report(maybeRoomId));
+      const error = PathReporter.report(maybeRoomId);
+      console.log(error);
+      noty.error(error);
+      return;
+    }
+    
+    wss.connect(maybeUserId.right, maybeRoomId.right, stableShareableState.current)
+      .then(() => registerHandlers());
+
+  }, [
+    maybeRoomId,
+    stableUriIsEmpty,
+    stableShareableState,
+    stableSetMode,
+    registerHandlers,
+  ]);
+
+  // Отправка эвентов
+  useUpdateEffect(() => {
+    if (stableMode.current.type !== 'host' || stableUriIsEmpty.current) {
+      return;
+    }
+
+    if (isLeft(maybeRoomId)) {
+      const error = PathReporter.report(maybeRoomId);
+      console.log(error);
+      noty.error(error);
       return;
     }
 
@@ -141,8 +168,9 @@ const Challenges: FC<ChallengesProps> = ({
   }, [
     maybeRoomId,
     shareableState,
+    stableSetMode,
+    stableMode,
   ]);
-
 
   switch (mode.type) {
     case 'initializing':
@@ -177,9 +205,26 @@ const Challenges: FC<ChallengesProps> = ({
             description={<div style={{ marginBottom: margin, fontWeight: 'bold', fontSize: 32 }}>Disconnected</div>}
           />
           <Button
-            // TODO: reconnect
-            // onClick={() => reconnectWebsocket()}
-            onClick={() => {}}
+            onClick={() => {
+              const maybeUserId = getOrCreateUserId();
+
+              if (isLeft(maybeUserId)) {
+                const error = PathReporter.report(maybeUserId);
+                console.log(error);
+                noty.error(error);
+                return;
+              }
+          
+              if (isLeft(maybeRoomId)) {
+                const error = PathReporter.report(maybeRoomId);
+                console.log(error);
+                noty.error(error);
+                return;
+              }
+
+              wss.connect(maybeUserId.right, maybeRoomId.right, shareableState)
+                .then(() => registerHandlers());
+            }}
             size="large"
           >
             Reconnect
