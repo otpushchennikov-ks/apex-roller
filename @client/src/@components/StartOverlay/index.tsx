@@ -1,29 +1,33 @@
-import { FC, useState, useRef, useEffect } from 'react';
+import { FC, useState, useEffect, useCallback } from 'react';
 import { StartOverlayStyled } from './styled';
-import { Button } from 'antd';
 import { StartOverlayProps } from './types';
+import { Typography } from '@material-ui/core';
 
 
 const StartOverlay: FC<StartOverlayProps> = ({ render }) => {
-  const buttonRef = useRef<HTMLButtonElement>(null);
   const [isInit, setIsInit] = useState(false);
 
-  useEffect(() => {
-    buttonRef.current?.focus();
+  const handleInit = useCallback(() => {
+    setIsInit(true);
+    window.removeEventListener('click', handleInit);
+    window.removeEventListener('keypress', handleInit);
   }, []);
+
+  useEffect(() => {
+    window.addEventListener('click', handleInit);
+    window.addEventListener('keypress', handleInit);
+  }, [handleInit]);
 
   return (
     <>
       {!isInit ?
         <StartOverlayStyled>
-          <Button
-            ref={buttonRef}
-            style={{ margin: 'auto', transform: 'scale(3)' }}
-            onClick={() => setIsInit(true)}
-            onBlur={() => buttonRef.current?.focus()}
+          <Typography
+            color="textPrimary"
+            style={{ margin: 'auto', fontSize: 64 }}
           >
             Lets go!
-          </Button>
+          </Typography>
         </StartOverlayStyled>
         :
         render()

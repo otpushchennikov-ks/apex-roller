@@ -1,7 +1,5 @@
-import challengesData from '@modules/challenges';
-import { FC, useCallback, useEffect } from 'react';
-import { Skeleton, Empty, Button, Typography, Select, Checkbox, List, InputNumber, message as noty } from 'antd';
-import { InfoOutlined, UndoOutlined, WarningOutlined } from '@ant-design/icons';
+import { getChallenges } from '@modules/challenges';
+import { FC, Fragment, useCallback, useEffect, useState, ReactNode } from 'react';
 import { AmmoType } from '@apex-roller/shared';
 import { ReactComponent as ArrowsAmmo } from '@images/arrows-ammo.svg';
 import { ReactComponent as EnergyAmmo } from '@images/energy-ammo.svg';
@@ -14,14 +12,13 @@ import { ReactComponent as RelicHeavyAmmo } from '@images/relic-heavy-ammo.svg';
 import { ReactComponent as RelicLightAmmo } from '@images/relic-light-ammo.svg';
 import { ReactComponent as RelicShotgunAmmo } from '@images/relic-shotgun-ammo.svg';
 import { ReactComponent as RelicSniperAmmo } from '@images/relic-sniper-ammo.svg';
+import { css } from '@emotion/react';
 import ColumnStyled from '@styled/ColumnStyled';
 import RowStyled from '@styled/RowStyled';
-import highlitedMixin from '@styled/highlitedMixin';
-import { margin, lightYellowColor, gap } from '@styled/constants';
-import { onlyText } from 'react-children-utilities';
+import { margin, gap, padding } from '@styled/constants';
 import { v4 as uuid } from 'uuid';
 import Guard from '@utils/missClickGuard';
-import generateRandomIndex from '@utils/generateRandomIndex';
+import { generateRandomIndex } from '@utils/random';
 import WebsocketService from '@modules/websocketService';
 import useCurrentRoomId from '@hooks/useCurrentRoomId';
 import audioPlayer from '@modules/audioPlayer';
@@ -30,11 +27,34 @@ import { isLeft } from 'fp-ts/lib/Either';
 import { PathReporter } from 'io-ts/lib/PathReporter';
 import { useLatest, useUpdateEffect } from 'react-use';
 import useGlobalState from '@hooks/useGlobalState';
+import { Skeleton } from '@material-ui/lab';
+import { ReplayOutlined, InfoOutlined, ErrorOutline } from '@material-ui/icons';
+import {
+  Button,
+  Paper,
+  Typography,
+  Checkbox,
+  Select,
+  FormControl,
+  FormLabel,
+  InputLabel,
+  RadioGroup,
+  Radio,
+  FormControlLabel,
+  MenuItem,
+  List,
+  ListItem,
+  Slider,
+  Modal,
+  Fade,
+  Backdrop,
+} from '@material-ui/core';
+import { range } from 'ramda';
+import Message from '@components/Message';
+import { IMessageProps } from '@components/Message/interface';
 
 
 const wss = new WebsocketService();
-
-const { Text, Title } = Typography;
 
 const relicAmmoTypeImagesMap: Record<AmmoType, typeof ArrowsAmmo> = {
   Light: RelicLightAmmo,
@@ -56,7 +76,11 @@ const ammoTypeImagesMap: Record<AmmoType, typeof ArrowsAmmo> = {
 
 const guard = new Guard();
 
+const defaultMessage: Pick<IMessageProps, 'type' | 'isOpen' | 'text'> = { isOpen: false, type: undefined, text: '' };
 const Challenges: FC = () => {
+  const [message, setMessage] = useState(defaultMessage);
+  const [fullPoolModalIsOpen, setFullPoolModalIsOpen] = useState(false);
+
   const {
     mode,
     setMode,
@@ -64,6 +88,7 @@ const Challenges: FC = () => {
     dispatchShareableState,
     settings,
   } = useGlobalState();
+
   const { maybeRoomId, uriIsEmpty } = useCurrentRoomId();
 
   const stableDispatchShareableState = useLatest(dispatchShareableState);
@@ -87,7 +112,7 @@ const Challenges: FC = () => {
 
   const registerHandlers = useCallback(() => {
     wss.on('connected', message => {
-      noty.success(message.eventType);
+      setMessage({ isOpen: true, type: 'success', text: message.eventType });
       stableSetMode.current({ type: message.isHost ? 'host' : 'client' });
       if (!message.isHost) {
         stableDispatchShareableState.current({ type: 'replaceState', nextState: message.state });
@@ -95,13 +120,13 @@ const Challenges: FC = () => {
     });
 
     wss.on('disconnect', message => {
-      noty.info(message.eventType);
+      setMessage({ isOpen: true, type: 'info', text: message.eventType });
       stableSetMode.current({ type: 'disconnected' });
       wss.disconnect();
     });
 
     wss.on('error', message => {
-      noty.error(message.message);
+      setMessage({ isOpen: true, type: 'error', text: message.message });
       stableSetMode.current({ type: 'error', text: message.message });  
     });
     
@@ -115,7 +140,7 @@ const Challenges: FC = () => {
   useEffect(() => {
     if (stableUriIsEmpty.current) {
       wss.disconnect();
-      noty.info('private');
+      setMessage({ isOpen: true, type: 'info', text: 'private' });
       stableSetMode.current({ type: 'private' });
       return;
     }
@@ -123,16 +148,16 @@ const Challenges: FC = () => {
     const maybeUserId = getOrCreateUserId();
 
     if (isLeft(maybeUserId)) {
-      const error = PathReporter.report(maybeUserId);
+      const error = PathReporter.report(maybeUserId).join('; ');
       console.log(error);
-      noty.error(error);
+      setMessage({ isOpen: true, type: 'error', text: error });
       return;
     }
 
     if (isLeft(maybeRoomId)) {
-      const error = PathReporter.report(maybeRoomId);
+      const error = PathReporter.report(maybeRoomId).join('; ');
       console.log(error);
-      noty.error(error);
+      setMessage({ isOpen: true, type: 'error', text: error });
       return;
     }
     
@@ -154,9 +179,9 @@ const Challenges: FC = () => {
     }
 
     if (isLeft(maybeRoomId)) {
-      const error = PathReporter.report(maybeRoomId);
+      const error = PathReporter.report(maybeRoomId).join('; ');
       console.log(error);
-      noty.error(error);
+      setMessage({ isOpen: true, type: 'error', text: error });
       return;
     }
 
@@ -172,211 +197,327 @@ const Challenges: FC = () => {
     stableMode,
   ]);
 
+  const dataEntryIsDisabled = mode.type !== 'host' && mode.type !== 'private';
+  const currentChallenge = getChallenges(shareableState.challengeMode)[shareableState.challengeIndex];
+
+  let jsx: ReactNode = null;
   switch (mode.type) {
     case 'initializing':
-      return (
-        <>
-          <ColumnStyled
-            css={highlitedMixin}
-            style={{ marginBottom: margin, alignItems: 'center' }}
-          >
-            <Skeleton.Input active={true} style={{ width: 400, marginBottom: 10 }}/>
-            <Skeleton.Input active={true} style={{ width: 400, marginBottom: 10 }}/>
-            <Skeleton.Input active={true} style={{ width: 200, marginBottom: 10 }}/>
-            <Skeleton.Button active={true} style={{ width: 120 }} />
+      jsx = (
+        <Paper style={{ padding }}>
+          <ColumnStyled style={{ alignItems: 'center', marginBottom: margin }}>
+            <Skeleton variant="rect" style={{ width: 320, height: 32, marginBottom: gap }}/>
+            <Skeleton variant="rect" style={{ width: 320, height: 32, marginBottom: gap }}/>
+            <Skeleton variant="rect" style={{ width: 220, height: 32, marginBottom: gap }}/>
+            <Skeleton variant="rect" style={{ width: 140, height: 32 }} />
           </ColumnStyled>
-          <div css={highlitedMixin}>
-            <RowStyled style={{ marginBottom: 10 }}>
-              <Skeleton.Avatar active={true} style={{ marginRight: 10 }}/>
-              <Skeleton.Input active={true} style={{ width: 400 }}/>
+          <ColumnStyled style={{ alignItems: 'center' }}>
+            <RowStyled style={{ marginBottom: gap }}>
+              <Skeleton variant="circle" style={{ height: 32, width: 32, marginRight: gap }}/>
+              <Skeleton variant="rect" style={{ height: 32, width: 278 }}/>
             </RowStyled>
             <RowStyled>
-              <Skeleton.Avatar active={true} style={{ marginRight: 10 }}/>
-              <Skeleton.Input active={true} style={{ width: 400 }}/>
+              <Skeleton variant="circle" style={{ height: 32, width: 32, marginRight: gap }}/>
+              <Skeleton variant="rect" style={{ height: 32, width: 278 }}/>
             </RowStyled>
-          </div>
-        </>
+          </ColumnStyled>
+        </Paper>
       );
+      break;
     case 'disconnected':
-      return (
-        <ColumnStyled css={highlitedMixin}>
-          <Empty
-            image={<InfoOutlined style={{ fontSize: 99, color: lightYellowColor }} />}
-            description={<div style={{ marginBottom: margin, fontWeight: 'bold', fontSize: 32 }}>Disconnected</div>}
-          />
-          <Button
-            onClick={() => {
-              const maybeUserId = getOrCreateUserId();
+      jsx = (
+        <Paper style={{ padding }}>
+          <ColumnStyled style={{ alignItems: 'center' }}>
+            <InfoOutlined
+              color="action"
+              style={{ fontSize: 99 }}
+            />
+            <Typography style={{ fontWeight: 'bold', fontSize: 32 }}>Disconnected</Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => {
+                const maybeUserId = getOrCreateUserId();
 
-              if (isLeft(maybeUserId)) {
-                const error = PathReporter.report(maybeUserId);
-                console.log(error);
-                noty.error(error);
-                return;
-              }
-          
-              if (isLeft(maybeRoomId)) {
-                const error = PathReporter.report(maybeRoomId);
-                console.log(error);
-                noty.error(error);
-                return;
-              }
+                if (isLeft(maybeUserId)) {
+                  const error = PathReporter.report(maybeUserId).join('; ');
+                  console.log(error);
+                  setMessage({ isOpen: true, type: 'error', text: error });
 
-              wss.connect(maybeUserId.right, maybeRoomId.right, shareableState)
-                .then(() => registerHandlers());
-            }}
-            size="large"
-          >
-            Reconnect
-          </Button>
-        </ColumnStyled>
-      );
-    case 'error':
-      return (
-        <Empty
-          image={<WarningOutlined style={{ fontSize: 99, color: '#e57373' }} />}
-          description={
-            <div
-              css={highlitedMixin}
-              style={{ fontWeight: 'bold', fontSize: 32 }}
+                  return;
+                }
+            
+                if (isLeft(maybeRoomId)) {
+                  const error = PathReporter.report(maybeRoomId).join('; ');
+                  console.log(error);
+                  setMessage({ isOpen: true, type: 'error', text: error });
+                  return;
+                }
+
+                wss.connect(maybeUserId.right, maybeRoomId.right, shareableState)
+                  .then(() => registerHandlers());
+              }}
+              size="large"
             >
-              {mode.text}
-            </div>
-          }
-        />
+              Reconnect
+            </Button>
+          </ColumnStyled>
+        </Paper>
       );
+      break;
+    case 'error':
+      jsx = (
+        <Paper style={{ padding }}>
+          <ColumnStyled style={{ alignItems: 'center' }}>
+            <ErrorOutline style={{ fontSize: 99 }} color="error" />
+            <Typography style={{ fontWeight: 'bold', fontSize: 32 }}>{mode.text}</Typography>
+          </ColumnStyled>
+        </Paper>
+      );
+      break;
     case 'private':
     case 'host':
     case 'client':
-      return (
+      jsx = (
         <>
-          <div css={highlitedMixin}>
-            <RowStyled leadItemWidth={105} style={{ margin: `0 auto ${gap}px` }}>
-              <Text strong={true} style={{ marginRight: gap }}>
-                Challenge
-              </Text>
-              <RowStyled style={{ flexGrow: 2 }}>
-                <Select
-                  value={shareableState.challengeIndex}
-                  onChange={value => dispatchShareableState({ type: 'changeIndex', nextIndex: value })}
-                  style={{ marginRight: gap, flexGrow: 2 }}
-                  disabled={mode.type === 'client'}
-                  showSearch={true}
-                  filterOption={(inputText, node)=> onlyText(node?.children).toLowerCase().includes(inputText)}
+          <Paper style={{ padding, marginBottom: margin }}>
+            <RowStyled style={{ justifyContent: 'center' }}>
+              <FormControl style={{ textAlign: 'center' }}>
+                <FormLabel>Mode</FormLabel>
+                <RadioGroup
+                  row={true}
+                  value={shareableState.challengeMode}
+                  onChange={({ target: { value }}) => dispatchShareableState({
+                    type: 'changeChallengeMode',
+                    nextMode: value as string,
+                  })}
                 >
-                  {challengesData.map(({ mode, name }, i) => {
+                  <FormControlLabel
+                    label="BR"
+                    control={
+                      <Radio
+                        disabled={dataEntryIsDisabled}
+                        value="BR"
+                        color="default"
+                      />
+                    }
+                  />
+                  <FormControlLabel
+                    label="ARENA"
+                    control={
+                      <Radio
+                        disabled={dataEntryIsDisabled}
+                        value="ARENA"
+                        color="default"
+                      />
+                    }
+                  />
+                </RadioGroup>
+              </FormControl>
+            </RowStyled>
+            <RowStyled>
+              <FormControl style={{ marginRight: gap, flexGrow: 2 }}>
+                <InputLabel color="primary" id="challenge">Challenge</InputLabel>
+                <Select
+                  labelId="challenge"
+                  value={shareableState.challengeIndex}
+                  onChange={({ target: { value }}) => dispatchShareableState({
+                    type: 'changeChallengeIndex',
+                    nextIndex: value as number,
+                  })}
+                  disabled={dataEntryIsDisabled}
+                >
+                  {getChallenges(shareableState.challengeMode).map(({ name }, i) => {
                     return (
-                      <Select.Option key={uuid()} value={i}>
-                        <Text strong={true} style={{ marginRight: gap / 2 }}>{mode} </Text>
-                        <span>{name}</span>
-                      </Select.Option>
+                      <MenuItem key={uuid()} value={i}>
+                        {name}
+                      </MenuItem>
                     );
                   })}
                 </Select>
-                <Button
-                  disabled={mode.type !== 'host'}
-                  onClick={() => {
-                    guard.try('rollChallenge', () => {
-                      dispatchShareableState({
-                        type: 'changeIndex',
-                        nextIndex: generateRandomIndex(challengesData.length),
-                      });
-                    }, () => noty.info(guardFailureMessage));
-                  }}
-                >
-                  <UndoOutlined />
-                </Button>
-              </RowStyled>
-            </RowStyled>
-            <RowStyled leadItemWidth={105} style={{ margin: `0 auto ${gap}px` }}>
-              <Text strong={true} style={{ marginRight: 10 }}>
-                Weapons count
-              </Text>
-              <InputNumber
-                min={1}
-                max={5}
-                value={shareableState.count}
-                onBlur={({ target: { value }}) => {
-                  if (Number.isNaN(Number.parseInt(value))) {
+              </FormControl>
+              <Button
+                color="default"
+                size="small"
+                disabled={dataEntryIsDisabled}
+                onClick={() => {
+                  guard.try('rollChallenge', () => {
                     dispatchShareableState({
-                      type: 'changeCount',
-                      nextCount: 1,
+                      type: 'changeChallengeIndex',
+                      nextIndex: generateRandomIndex(getChallenges(shareableState.challengeMode).length),
                     });
-                  }
-                }}
-                onChange={value => {
-                  if (value && value > 0 && value !== shareableState.count) {
-                    dispatchShareableState({
-                      type: 'changeCount',
-                      nextCount: value,
-                    });
-                  }
-                }}
-                style={{ flexGrow: 2 }}
-                disabled={mode.type === 'client'}
-              />
-            </RowStyled>
-            <div style={{ textAlign: 'center', margin: `0 auto ${['host', 'private'].includes(mode.type) ? `${gap}px` : 0}` }}>
-              <Checkbox
-                checked={shareableState.isUnique}
-                onChange={({ target: { checked }}) => {
-                  dispatchShareableState({
-                    type: 'changeIsUnique',
-                    nextIsUnique: checked,
+                  }, () => {
+                    setMessage({ isOpen: true, type: 'info', text: guardFailureMessage });
                   });
                 }}
-                style={{ display: 'inline-flex' }}
-                disabled={mode.type === 'client'}
               >
-                <Text strong={true}>Is unique</Text>
-              </Checkbox>
-            </div>
-            {['host', 'private'].includes(mode.type) &&
+                <ReplayOutlined />
+              </Button>
+            </RowStyled>
+            {currentChallenge.description &&
+              <ColumnStyled style={{ marginTop: margin }}>
+                <Typography style={{ fontSize: 14 }} color="textSecondary">Description</Typography>
+                <Typography style={{ maxWidth: 298 }}>
+                  {currentChallenge.description}
+                </Typography>
+              </ColumnStyled>
+            }
+            {Boolean(currentChallenge.settingsForRender?.length) &&
+              <ColumnStyled style={{ marginTop: margin, alignItems: 'flex-start' }}>
+                <Typography style={{ fontSize: 14 }} color="textSecondary">Settings</Typography>
+                {currentChallenge.settingsForRender!.map(setting => {
+                  switch (setting.type) {
+                    case 'boolean':
+                      return (
+                        <FormControlLabel
+                          label={setting.label}
+                          control={
+                            <Checkbox
+                              disabled={dataEntryIsDisabled}
+                              size="small"
+                              color="default"
+                              checked={shareableState.challengeSettings[setting.id]! as boolean}
+                              onChange={({ target: { checked }}) => dispatchShareableState({
+                                type: 'changeChallengeSettings',
+                                nextSettings: {
+                                  ...shareableState.challengeSettings,
+                                  [setting.id]: checked,
+                                },
+                              })}
+                            />
+                          }
+                        />
+                      );
+
+                    case 'number':
+                      return (
+                        <Slider
+                          valueLabelDisplay="auto"
+                          min={setting.min}
+                          max={setting.max}
+                          disabled={dataEntryIsDisabled}
+                          step={1}
+                          style={{ width: 'calc(100% - 35px)', marginLeft: 'auto', marginRight: 'auto', display: 'block' }}
+                          marks={range(setting.min, setting.max + 1).map(value => ({ value, label: `${value} pc.` }))}
+                          value={shareableState.challengeSettings[setting.id]! as number}
+                          onChange={(_, value) => dispatchShareableState({
+                            type: 'changeChallengeSettings',
+                            nextSettings: {
+                              ...shareableState.challengeSettings,
+                              [setting.id]: value as number,
+                            },
+                          })}
+                        />
+                      );
+
+                    default:
+                      return null;
+                  }
+                })}
+              </ColumnStyled>
+            }
+            {!dataEntryIsDisabled &&
               <Button
-                style={{ display: 'block', margin: '0 auto' }}
+                color="primary"
+                variant="contained"
+                style={{ display: 'block', marginTop: margin, marginLeft: 'auto', marginRight: 'auto' }}
                 onClick={() => {
                   guard.try('useChallenge', () => {
-                    dispatchShareableState({ type: 'regenerateWeapons' })
-                  }, () => noty.info(guardFailureMessage));
+                    dispatchShareableState({ type: 'regenerateGroupedValues' });
+                  }, () => {
+                    setMessage({ isOpen: true, type: 'info', text: guardFailureMessage });
+                  });
                 }}
               >
-                <Text strong={true}>Use challenge</Text>
+                Roll
               </Button>
             }
-          </div>
-          <div
-            css={highlitedMixin}
-            style={{ marginTop: margin }}
-          >
-            <Title type="secondary" level={5}>Pool quantity: {challengesData[shareableState.challengeIndex].getPoolQuantity()}</Title>
-            <List>
-              {shareableState.weapons.map(({ name, ammoType, isAirdrop }, i) => {
-                const Ammo = (isAirdrop ? relicAmmoTypeImagesMap : ammoTypeImagesMap)[ammoType];
+          </Paper>
+          <Paper>
+            <Modal
+              open={fullPoolModalIsOpen}
+              onClose={() => setFullPoolModalIsOpen(false)}
+              closeAfterTransition={true}
+              BackdropComponent={Backdrop}
+              BackdropProps={{ timeout: 500 }}
+              style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+            >
+              <Fade in={fullPoolModalIsOpen}>
+                <Paper style={{ maxHeight: '80%', overflowY: 'auto' }}>
+                  <List>
+                    {currentChallenge.flatPool.map(weapon => {
+                      const AmmoImage = !weapon.isAirdrop ? ammoTypeImagesMap[weapon.ammoType] : relicAmmoTypeImagesMap[weapon.ammoType];
 
-                return (
-                  <List.Item
-                    key={name + i}
-                    style={{ fontSize: 32 }}
-                  >
-                    <RowStyled style={{ width: '100%' }}>
-                      <div>
-                        <Text strong={true} style={{ marginRight: 10 }}>
-                          {i + 1}.
-                        </Text>
-                        <Text strong={true}>{name}</Text>
-                      </div>
-                      <Ammo style={{ marginLeft: 10, width: 42, height: 42 }} />
-                    </RowStyled>
-                  </List.Item>
-                );
-              })}
-            </List>
-          </div>
+                      return (
+                        <ListItem key={uuid()}>
+                          <RowStyled style={{ width: '100%' }}>
+                            <Typography color="textPrimary" style={{ fontSize: 24 }}>{weapon.name}</Typography>
+                            <AmmoImage style={{ marginLeft: gap, width: 42, height: 42 }} />
+                          </RowStyled>
+                        </ListItem>
+                      );
+                    })}
+                  </List>
+                </Paper>
+              </Fade>
+            </Modal>
+            <Typography
+              style={{
+                fontSize: 14,
+                paddingTop: padding,
+                paddingLeft: padding,
+                paddingBottom: currentChallenge.flatPool.length ? gap : padding,
+                cursor: currentChallenge.flatPool.length ? 'pointer' : 'default',
+                display: 'inline-block',
+                fontWeight: 'bold',
+              }}
+              color="textSecondary"
+              css={currentChallenge.flatPool.length && css`&:hover { text-decoration: underline; }`}
+              onClick={() => currentChallenge.flatPool.length && setFullPoolModalIsOpen(true)}
+            >
+              Full pool quantity: {currentChallenge.flatPool.length} pc.
+            </Typography>
+            {shareableState.groupedValues.map((values, i) => {
+              return (
+                <Fragment key={uuid()}>
+                  <Typography style={{ fontSize: 14, paddingLeft: padding }} color="textSecondary">Group: {i + 1}</Typography>
+                  <List dense={true}>
+                    {values.map(weapon => {
+                      const AmmoImage = !weapon.isAirdrop ? ammoTypeImagesMap[weapon.ammoType] : relicAmmoTypeImagesMap[weapon.ammoType];
+
+                      return (
+                        <ListItem key={uuid()}>
+                          <RowStyled style={{ width: '100%' }}>
+                            <Typography style={{ fontSize: 24 }}>{weapon.name}</Typography>
+                            <AmmoImage style={{ marginLeft: gap, width: 42, height: 42 }} />
+                          </RowStyled>
+                        </ListItem>
+                      );
+                    })}
+                  </List>
+                </Fragment>
+              );
+            })}
+          </Paper>
         </>
       );
+      break;
     default:
-      return null;
+      jsx = null;
+      break;
   }
+
+  return (
+    <>
+      {jsx}
+      <Message
+        isOpen={message.isOpen}
+        onClose={() => setMessage(defaultMessage)}
+        text={message.text}
+        type={message.type}
+      />
+    </>
+  );
 };
 
 export default Challenges;

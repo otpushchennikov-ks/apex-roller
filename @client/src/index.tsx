@@ -9,34 +9,49 @@ import Challenges from '@components/Challenges';
 import Search from '@components/Search';
 import Settings from '@components/Settings';
 import TopRooms from '@components/TopRooms';
+import { createMuiTheme, ThemeProvider, useTheme } from '@material-ui/core';
 
+
+const theme = createMuiTheme({
+  palette: {
+    type: 'dark',
+    primary: {
+      main: '#263238',
+      light: '#4f5b62',
+      dark: '#000a12',
+      contrastText: '#fff',
+    },
+  },
+});
 
 const App: FC = () => {
-  return (
-    <RootStyled>
-      <div className="content">
-        <TopRooms />
-        <Search />
-        <Settings />
-        <Challenges />
-      </div>
-    </RootStyled>
-  );
-};
-
-const Root: FC = () => {
+  const theme = useTheme();
+  
   return (
     <GlobalStateContextProvider>
-      <StartOverlay
-        render={() => <App />}
-      />
+      <RootStyled mainBgColor={theme.palette.background.default}>
+        <StartOverlay
+          render={() => {
+            return (
+              <div style={{ minWidth: 320 }}>
+                <TopRooms />
+                <Search />
+                <Settings />
+                <Challenges />
+              </div>
+            );
+          }}
+        />
+      </RootStyled>
     </GlobalStateContextProvider>
   );
 };
 
 render(
   <BrowserRouter>
-    <Root />
+    <ThemeProvider theme={theme}>
+      <App />
+    </ThemeProvider>
   </BrowserRouter>,
   document.getElementById('root')
 );

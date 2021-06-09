@@ -1,17 +1,18 @@
 import styled from '@emotion/styled';
-import { mainBoxWidth } from './constants';
+import { margin } from './constants';
 
 
-const RootStyled = styled.div`
+const RootStyled = styled.div<{ mainBgColor: string }>`
   width: 100vw;
-  height: 100vh;
+  min-height: 100vh;
   background-size: cover;
+  padding: ${margin}px;
+  background-color: ${({ mainBgColor }) => mainBgColor};
   display: flex;
   justify-content: center;
   align-items: center;
-
-  .content {
-    width: ${mainBoxWidth}px;
+  @media (max-width: 768px) {
+    padding-top: ${margin * 3}px;
   }
 `;
 

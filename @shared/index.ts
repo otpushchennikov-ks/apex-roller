@@ -57,11 +57,14 @@ const WeaponCodec = T.type({
 })
 export type Weapon = T.TypeOf<typeof WeaponCodec>
 
+const ChallengeSettingsCodec = T.record(T.string, T.union([T.number, T.boolean, T.undefined]))
+export type ChallengeSettings = T.TypeOf<typeof ChallengeSettingsCodec>
+
 const UserShareableStateCodec = T.type({
+  challengeMode: T.string,
   challengeIndex: T.number,
-  isUnique: T.boolean,
-  count: T.number,
-  weapons: T.array(WeaponCodec)
+  challengeSettings: ChallengeSettingsCodec,
+  groupedValues: T.array(T.array(WeaponCodec)),
 })
 export type UserShareableState = T.TypeOf<typeof UserShareableStateCodec>
 
@@ -151,19 +154,8 @@ export const MessageCodec = JSONCodec.pipe(T.union([
 
 export type Message = T.TypeOf<typeof MessageCodec>
 
-export type Challenge = {
-  mode: 'BR' | 'ARENA'
-  name: string
-  getPoolQuantity: () => number
-  runFn: (weaponsCount: number, isUnique?: boolean) => Weapon[]
-}
-export type ChallengeFactory = (
-  mode: Challenge['mode'],
-  name: Challenge['name'],
-  poolFactory: () => Weapon[],
-) => Challenge
-
 export const TopRoomsCodec = T.type({
   topRooms: T.array(RoomIdCodec),
 })
 export type TopRooms = T.TypeOf<typeof TopRoomsCodec>
+

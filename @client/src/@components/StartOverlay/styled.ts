@@ -1,5 +1,5 @@
 import styled from '@emotion/styled';
-import { rootBgColor } from '@styled/constants';
+// import { rootBgColor } from '@styled/constants';
 
 
 export const StartOverlayStyled = styled.div`
@@ -9,6 +9,5 @@ export const StartOverlayStyled = styled.div`
   right: 0;
   bottom: 0;
   z-index: 2;
-  background-color: ${rootBgColor};
   display: flex;
 `;

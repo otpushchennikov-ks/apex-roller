@@ -8,7 +8,7 @@ import { MessageCodec } from '@apex-roller/shared';
 import cors from 'cors';
 import getOrCreateLogger from './@modules/logger'
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 const CLIENT_BUILD_PATH = path.join(__dirname, '..', '..', '@client', 'build');
 

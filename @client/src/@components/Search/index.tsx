@@ -1,40 +1,41 @@
-import { useState, FC, useRef, useEffect } from 'react';
+import { useState, FC } from 'react';
 import { useHistory } from 'react-router-dom';
-import { Button, Input } from 'antd';
-import { HomeOutlined, EnterOutlined } from '@ant-design/icons';
 import RowStyled from '@styled/RowStyled';
-import highlitedMixin from '@styled/highlitedMixin';
-import { margin } from '@styled/constants';
+import { margin, padding } from '@styled/constants';
+import { Button, TextField } from '@material-ui/core';
+import { HomeOutlined, KeyboardReturnOutlined } from '@material-ui/icons';
 
 
 const Search: FC = () => {
-  const inputRef = useRef<Input>(null);
   const history = useHistory();
   const [roomIdInput, setRoomIdInput] = useState('');
 
-  useEffect(() => inputRef.current?.focus(), []);
-
   return (
-    <RowStyled style={{ marginBottom: margin }} css={highlitedMixin}>
+    <RowStyled style={{ marginBottom: margin, padding }}>
       <Button
+        variant="contained"
+        color="primary"
         onClick={() => {
           setRoomIdInput('');
           history.push('');
         }}
       >
-        <HomeOutlined />
+        <HomeOutlined fontSize="small" />
       </Button>
-      <Input
-        ref={inputRef}
+      <TextField
+        autoFocus={true}
         placeholder="Enter room id"
-        allowClear={true}
         value={roomIdInput}
         style={{ width: '100%', marginLeft: 10, marginRight: 10 }}
         onChange={({ target: { value }}) => setRoomIdInput(value)}
-        onPressEnter={() => history.push(roomIdInput)}
+        onKeyPress={({ key }) => key === 'Enter' && history.push(roomIdInput)}
       />
-      <Button onClick={() => history.push(roomIdInput)}>
-        <EnterOutlined />
+      <Button
+        color="primary"
+        variant="contained"
+        onClick={() => history.push(roomIdInput)}
+      >
+        <KeyboardReturnOutlined fontSize="small" />
       </Button>
     </RowStyled>
   );

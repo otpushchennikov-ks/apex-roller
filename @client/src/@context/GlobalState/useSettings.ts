@@ -22,7 +22,7 @@ const defaultSettings: Settings = {
   backgroundSrc: null,
   missClickGuard: {
     isEnabled: true,
-    delay: 1000,
+    delay: 0,
   },
 };
 

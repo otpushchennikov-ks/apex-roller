@@ -1,6 +1,5 @@
 import { Message, EventType, MessageCodec, RoomId, UserId, UserShareableState } from '@apex-roller/shared';
 import { wsHost } from '@utils/constants';
-import { message as noty } from 'antd';
 import { isLeft } from 'fp-ts/lib/Either';
 import { PathReporter } from 'io-ts/lib/PathReporter';
 
@@ -60,7 +59,6 @@ class WebSocketService {
           if (isLeft(maybeMessage)) {
             const error = PathReporter.report(maybeMessage);
             console.log(error);
-            noty.error(error);
             return;
           }
     

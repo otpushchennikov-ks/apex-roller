@@ -2,23 +2,25 @@ import { FC, useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { TopRoomsCodec, RoomId } from '@apex-roller/shared';
 import { isLeft } from 'fp-ts/Either';
-import { message as noty, Typography, Button } from 'antd';
+import { Button, Typography, SwipeableDrawer } from '@material-ui/core';
 import { PathReporter } from 'io-ts/lib/PathReporter';
 import useCurrentRoomId from '@hooks/useCurrentRoomId';
-import { TopRoomsStyled } from './styled';
 import { useHistory } from 'react-router';
-import { EnterOutlined, RedoOutlined } from '@ant-design/icons';
-import { gap, margin } from '@styled/constants';
-import highlitedMixin from '@styled/highlitedMixin';
+import { ReplayOutlined, KeyboardReturnOutlined, AccountCircleOutlined } from '@material-ui/icons';
+import { gap, margin, padding } from '@styled/constants';
 import RowStyled from '@styled/RowStyled';
+import ColumnStyled from '@styled/ColumnStyled';
+import Message from '@components/Message';
+import { IMessageProps } from '@components/Message/interface';
 
 
-const { Text } = Typography;
-
+const defaultMessage: Pick<IMessageProps, 'type' | 'isOpen' | 'text'> = { isOpen: false, type: undefined, text: '' };
 const TopRoomsComponent: FC = () => {
+  const [message, setMessage] = useState(defaultMessage);
   const history = useHistory();
   const { maybeRoomId } = useCurrentRoomId();
 
+  const [drawerIsOpen, setDrawerIsOpen] = useState(false);
   const [topRooms, setTopRooms] = useState<RoomId[]>([]);
 
   const fetchTopRooms = useCallback((): Promise<RoomId[]> => {
@@ -34,7 +36,7 @@ const TopRoomsComponent: FC = () => {
         return maybeTopRooms.right.topRooms;
       })
       .catch(() => {
-        noty.error(`Network error: can't load top rooms`);
+        setMessage({ type: 'error', isOpen: true, text: 'Network error: can\'t load top rooms' });
         return [];
       });
   }, []);
@@ -47,16 +49,29 @@ const TopRoomsComponent: FC = () => {
 
   return (
     <>
-      {Boolean(topRoomsSlice.length) &&
-        <TopRoomsStyled css={highlitedMixin}>
+      <Button
+        variant="text"
+        style={{ position: 'absolute', top: 20, left: 20 }}
+        onClick={() => setDrawerIsOpen(true)}
+      >
+        <AccountCircleOutlined />
+      </Button>
+      <SwipeableDrawer
+        anchor="left"
+        open={drawerIsOpen}
+        onOpen={() => setDrawerIsOpen(true)}
+        onClose={() => setDrawerIsOpen(false)}
+      >
+        <ColumnStyled style={{ padding }}>
           <RowStyled style={{ justifyContent: 'center', marginBottom: margin }}>
-            <Text strong={true}>Top rooms</Text>
+            <Typography style={{ fontWeight: 'bold' }}>Top rooms</Typography>
             <Button
-              style={{ marginLeft: gap }}
               size="small"
+              variant="text"
+              style={{ marginLeft: gap }}
               onClick={() => fetchTopRooms().then(setTopRooms)}
             >
-              <RedoOutlined />
+              <ReplayOutlined fontSize="small" />
             </Button>
           </RowStyled>
           <div>
@@ -83,17 +98,24 @@ const TopRoomsComponent: FC = () => {
                   </div>
                   <Button
                     size="small"
+                    variant="text"
                     style={{ marginLeft: gap }}
                     onClick={() => history.push(`/${roomId}`)}
                   >
-                    <EnterOutlined />
+                    <KeyboardReturnOutlined fontSize="small" />
                   </Button>
                 </RowStyled>
               );
             })}
           </div>
-        </TopRoomsStyled>
-      }
+        </ColumnStyled>
+      </SwipeableDrawer>
+      <Message
+        isOpen={message.isOpen}
+        onClose={() => setMessage(defaultMessage)}
+        text={message.text}
+        type={message.type}
+      />
     </>
   );
 };

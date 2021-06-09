@@ -1,54 +1,74 @@
-import challenges from '@modules/challenges';
+import { Challenge, getChallenges } from '@modules/challenges';
 import { useReducer, useEffect } from 'react';
-import { UserShareableState as ShareableState } from '@apex-roller/shared';
+import { UserShareableState as ShareableState, ChallengeSettings } from '@apex-roller/shared';
 import { useLocalStorage } from 'react-use';
-import generateRandomIndex from '@utils/generateRandomIndex';
+import { generateRandomIndex } from '@utils/random';
 
 
 const statePersistKey = 'shareable-state-persist';
 
 type ShareableStateAction = 
-  | { type: 'changeIndex', nextIndex: number }
-  | { type: 'changeCount', nextCount: number }
-  | { type: 'changeIsUnique', nextIsUnique: boolean }
-  | { type: 'regenerateWeapons' }
+  | { type: 'changeChallengeMode', nextMode: string }
+  | { type: 'changeChallengeIndex', nextIndex: number }
+  | { type: 'changeChallengeSettings', nextSettings: ChallengeSettings }
+  | { type: 'regenerateGroupedValues' }
   | { type: 'replaceState', nextState: ShareableState };
 
+const getDefaultSettingsByChallenge = (challenge: Challenge): ChallengeSettings => {
+  return !challenge.settingsForRender ? {} : challenge.settingsForRender.reduce((accumulator, setting) => ({
+    ...accumulator,
+    [setting.id]: setting.default,
+  }), {} as ChallengeSettings);
+};
+
 const defaultShareableState: ShareableState = {
+  challengeMode: 'BR',
   challengeIndex: 0,
-  count: 2,
-  isUnique: true,
-  weapons: challenges[generateRandomIndex(challenges.length)].runFn(2, true),
+  challengeSettings: getDefaultSettingsByChallenge(getChallenges('BR')[0]),
+  groupedValues: getChallenges('BR')[0].run(getDefaultSettingsByChallenge(getChallenges('BR')[0])),
 };
 
 const reducer = (state: ShareableState, action: ShareableStateAction): ShareableState => {
   switch (action.type) {
-    case 'changeIndex':
+    case 'changeChallengeMode': {
+      const challenges = getChallenges(action.nextMode);
+      const nextChallenge = challenges[generateRandomIndex(challenges.length)];
+
+      return {
+        ...state,
+        challengeMode: action.nextMode,
+        challengeIndex: 0,
+        challengeSettings: getDefaultSettingsByChallenge(nextChallenge),
+        groupedValues: nextChallenge.run(getDefaultSettingsByChallenge(nextChallenge)),
+      };
+    }
+    
+    case 'changeChallengeIndex': {
+      const nextChallenge = getChallenges(state.challengeMode)[action.nextIndex];
+
       return {
         ...state,
         challengeIndex: action.nextIndex,
-        weapons: challenges[action.nextIndex].runFn(state.count, state.isUnique),
+        challengeSettings: getDefaultSettingsByChallenge(nextChallenge),
+        groupedValues: nextChallenge.run(getDefaultSettingsByChallenge(nextChallenge)),
       };
+    }
 
-    case 'changeCount':
+    case 'changeChallengeSettings': {
       return {
         ...state,
-        count: action.nextCount,
-        weapons: challenges[state.challengeIndex].runFn(action.nextCount, state.isUnique),
+        challengeSettings: action.nextSettings,
+        groupedValues: getChallenges(state.challengeMode)[state.challengeIndex].run(action.nextSettings),
       };
+    }
 
-    case 'changeIsUnique':
+    case 'regenerateGroupedValues': {
+      const nextGroupedValues = getChallenges(state.challengeMode)[state.challengeIndex].run(state.challengeSettings);
       return {
         ...state,
-        isUnique: action.nextIsUnique,
-        weapons: challenges[state.challengeIndex].runFn(state.count, action.nextIsUnique),
+        groupedValues: nextGroupedValues,
       };
-
-    case 'regenerateWeapons':
-      return {
-        ...state,
-        weapons: challenges[state.challengeIndex].runFn(state.count, state.isUnique),
-      };
+    }
     
     case 'replaceState':
       return action.nextState;
