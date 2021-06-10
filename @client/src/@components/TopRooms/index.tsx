@@ -10,13 +10,14 @@ import { ReplayOutlined, KeyboardReturnOutlined, AccountCircleOutlined } from '@
 import { gap, margin, padding } from '@styled/constants';
 import RowStyled from '@styled/RowStyled';
 import ColumnStyled from '@styled/ColumnStyled';
-import Message from '@components/Message';
-import { IMessageProps } from '@components/Message/interface';
+import useMessage from '@hooks/useMessage';
+import { useLatest } from 'react-use';
 
 
-const defaultMessage: Pick<IMessageProps, 'type' | 'isOpen' | 'text'> = { isOpen: false, type: undefined, text: '' };
 const TopRoomsComponent: FC = () => {
-  const [message, setMessage] = useState(defaultMessage);
+  const { messageJsx, showMessage } = useMessage();
+  const stableShowMessage = useLatest(showMessage);
+
   const history = useHistory();
   const { maybeRoomId } = useCurrentRoomId();
 
@@ -36,10 +37,10 @@ const TopRoomsComponent: FC = () => {
         return maybeTopRooms.right.topRooms;
       })
       .catch(() => {
-        setMessage({ type: 'error', isOpen: true, text: 'Network error: can\'t load top rooms' });
+        stableShowMessage.current('error', 'Network error: can\'t load top rooms');
         return [];
       });
-  }, []);
+  }, [stableShowMessage]);
 
   useEffect(() => {
     fetchTopRooms().then(setTopRooms);
@@ -110,12 +111,7 @@ const TopRoomsComponent: FC = () => {
           </div>
         </ColumnStyled>
       </SwipeableDrawer>
-      <Message
-        isOpen={message.isOpen}
-        onClose={() => setMessage(defaultMessage)}
-        text={message.text}
-        type={message.type}
-      />
+      {messageJsx}
     </>
   );
 };

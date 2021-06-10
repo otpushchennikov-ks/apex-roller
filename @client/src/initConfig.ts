@@ -1,3 +1,4 @@
+import 'normalize.css';
 import axios from 'axios';
 import { restHost } from '@utils/constants';
 

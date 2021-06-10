@@ -10,6 +10,7 @@ import Search from '@components/Search';
 import Settings from '@components/Settings';
 import TopRooms from '@components/TopRooms';
 import { createMuiTheme, ThemeProvider, useTheme } from '@material-ui/core';
+import GlobalStyles from '@styled/GlobalStyles';
 
 
 const theme = createMuiTheme({
@@ -43,6 +44,7 @@ const App: FC = () => {
           }}
         />
       </RootStyled>
+      <GlobalStyles />
     </GlobalStateContextProvider>
   );
 };

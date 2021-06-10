@@ -104,8 +104,8 @@ const Settings: FC = () => {
                 disabled={!settings.missClickGuard.isEnabled}
                 style={{ width: 'calc(100% - 35px)', marginLeft: 'auto', marginRight: 'auto', display: 'block' }}
                 marks={range(1, 6).map(value => ({ value, label: `${value} sec.` }))}
-                value={settings.missClickGuard.delay / 1000}
-                onChange={(_, value) => setSettings(settings => ({
+                defaultValue={settings.missClickGuard.delay / 1000}
+                onChangeCommitted={(_, value) => setSettings(settings => ({
                   ...settings,
                   missClickGuard: {
                     ...settings.missClickGuard,
