@@ -132,7 +132,10 @@ const Challenges: FC = () => {
     
     wss.on('update', message => {
       stableDispatchShareableState.current({ type: 'replaceState', nextState: message.state });
-      audioPlayer.play(stableSettings.current.notificationKey);  
+      
+      if (stableSettings.current.notificationIsEnabled) {
+        audioPlayer.play(stableSettings.current.notificationKey);
+      }
     });
   }, [stableDispatchShareableState, stableSetMode, stableSettings, stableShowMessage]);
 
@@ -384,18 +387,20 @@ const Challenges: FC = () => {
                             }
                           />
                         );
-                      case 'number':
+                      case 'number': {
+                        const value = shareableState.challengeSettings[setting.id]! as number;
+
                         return (
                           <Slider
                             key={setting.min + setting.max}
-                            valueLabelDisplay="auto"
                             min={setting.min}
                             max={setting.max}
                             disabled={dataEntryIsDisabled}
                             step={1}
                             style={{ width: 'calc(100% - 35px)', marginLeft: 'auto', marginRight: 'auto', display: 'block' }}
-                            marks={range(setting.min, setting.max + 1).map(value => ({ value, label: `${value} pc.` }))}
-                            defaultValue={shareableState.challengeSettings[setting.id]! as number}
+                            marks={range(setting.min, setting.max + 1).map(value => ({ value, label: value }))}
+                            value={mode.type === 'client' ? value : undefined}
+                            defaultValue={value}
                             onChangeCommitted={(_, value) => dispatchShareableState({
                               type: 'changeChallengeSettings',
                               nextSettings: {
@@ -405,6 +410,7 @@ const Challenges: FC = () => {
                             })}
                           />
                         );
+                      }
   
                       default:
                         return null;
