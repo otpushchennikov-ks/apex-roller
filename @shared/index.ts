@@ -36,6 +36,7 @@ const WeaponCodec = T.type({
     T.literal('Prowler Burst PDW'),
     T.literal('Devotion LMG'),
     T.literal('M600 Spitfire'),
+    T.literal('Rampage LMG'),
     T.literal('L-STAR EMG'),
     T.literal('G7 Scout'),
     T.literal('30-30 Repeater'),
