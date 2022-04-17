@@ -1,0 +1,15 @@
+{
+  "name": "@packages/shared",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "dependencies": {
+    "fp-ts": "^2.11.10",
+    "io-ts": "^2.2.16",
+    "typescript": "^4.6.3"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  }
+}

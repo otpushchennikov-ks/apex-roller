@@ -1,23 +1,20 @@
 {
   "private": true,
-  "name": "@apex-roller/root",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "workspaces": [
-    "./@shared"
+    "packages/shared",
+    "packages/server",
+    "packages/client"
   ],
+  "engines": {
+    "node": ">=16.4.0",
+    "npm": ">=8.5.0"
+  },
   "scripts": {
-    "preinstall": "npm run ci:shared && npm run ci:server && npm run ci:client",
-    "ci:shared": "cd @shared && npm ci && cd ..",
-    "ci:client": "cd @client && npm ci && cd ..",
-    "ci:server": "cd @server && npm ci && cd ..",
-    "dev:client": "cd @client && npm run dev",
-    "dev:server": "cd @server && npm run dev",
-    "dev:shared": "cd @shared && npm run dev",
-    "build:shared": "cd @shared && npm run build && cd ..",
-    "build:client": "cd @client && npm run build && cd ..",
-    "build:server": "cd @server && npm run build && cd ..",
-    "build": "npm run build:shared && npm run build:server && npm run build:client",
-    "start": "cd @server && npm run start",
-    "heroku-postbuild": "npm run build:shared && mkdir @server/node_modules/@apex-roller && mkdir @client/node_modules/@apex-roller && cp -r @shared @server/node_modules/@apex-roller/shared && cp -r @shared @client/node_modules/@apex-roller/shared && npm run build:server && npm run build:client"
+    "dev:shared": "npm run dev -w @packages/shared",
+    "dev:server": "npm run dev -w @packages/server",
+    "dev:client": "npm run dev -w @packages/client",
+    "build": "npm run build --workspaces",
+    "start": "npm run start -w @packages/server"
   }
 }

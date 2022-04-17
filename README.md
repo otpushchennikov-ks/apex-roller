@@ -4,11 +4,11 @@ ___
 Running applications in development mode:
 1. `npm install`
 2. `npm run dev:shared` - shared project process
-3. `npm run dev:client` - client project process
-4. `npm run dev:server` - server project process
+3. `npm run dev:server` - server project process
+4. `npm run dev:client` - client project process
 
 
 Building and running the application in production mode:
 1. `npm install`
 2. `npm run build`
-3. `npm run start`
+3. `npm start`
