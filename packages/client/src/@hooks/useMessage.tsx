@@ -52,7 +52,7 @@ const Message: FC<MessageProps & { index: number }> = ({ isOpen, text, type, ind
       open={isOpen}
       hidden={true}
       anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      style={{ position: 'absolute', top: 20 + (58 * index) }}
+      style={{ position: 'fixed', top: 20 + (58 * index) }}
     >
       <Alert severity={type}>
         {text}
