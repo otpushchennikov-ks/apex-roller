@@ -6,6 +6,8 @@ import { StartOverlay, Challenges, Search, Settings, TopRooms } from '@component
 import { GlobalStateContextProvider } from '@context/GlobalState';
 import { RootStyled, GlobalStyles } from '@styled';
 import { createTheme, ThemeProvider, useTheme } from '@material-ui/core';
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
+import reportWebVitals from './reportWebVitals';
 
 
 const theme = createTheme({
@@ -52,3 +54,7 @@ render(
   </BrowserRouter>,
   document.getElementById('root')
 );
+
+
+serviceWorkerRegistration.register();
+reportWebVitals();
