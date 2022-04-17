@@ -363,13 +363,16 @@ export const Challenges: FC = () => {
                             min={setting.min}
                             max={setting.max}
                             disabled={dataEntryIsDisabled}
-                            onAfterChange={value => dispatchShareableState({
-                              type: 'changeChallengeSettings',
-                              nextSettings: {
-                                ...shareableState.challengeSettings,
-                                [setting.id]: value,
-                              },
-                            })}
+                            onAfterChange={value => {
+                              navigator?.vibrate(200);
+                              dispatchShareableState({
+                                type: 'changeChallengeSettings',
+                                nextSettings: {
+                                  ...shareableState.challengeSettings,
+                                  [setting.id]: value,
+                                },
+                              })
+                            }}
                           />
                         );
                       }
